@@ -1,0 +1,39 @@
+{
+  "id": "/",
+  "name": "المعمل الافتراضي لمهندسي الميكاترونكس - جامعات اليمن",
+  "short_name": "ميكاترونكس",
+  "description": "منصة ومعمل محاكاة افتراضي متكامل وشامل لطلاب هندسة الميكاترونكس في الجامعات اليمنية لجميع السنوات الدراسية.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#090d16",
+  "background_color": "#020617",
+  "categories": ["education", "engineering", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
