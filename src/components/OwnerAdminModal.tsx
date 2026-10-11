@@ -338,7 +338,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                               onChange={(e) => {
                                 const newYr = Number(e.target.value) as AcademicYear;
                                 authStorage.updateUserAcademicYear(u.id, newYr);
-                                setUsers(authStorage.getUsers());
+                                setUsersList(authStorage.getUsers());
                               }}
                               className="bg-slate-900 border border-slate-700 hover:border-purple-500 rounded-lg px-2 py-1 text-[11px] font-bold text-purple-300 focus:outline-none cursor-pointer"
                               title="تعديل السنة الدراسية للطالب"

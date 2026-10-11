@@ -13,7 +13,10 @@ import {
   HelpCircle,
   Sparkles,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Gauge,
+  Activity,
+  Crosshair
 } from 'lucide-react';
 
 export interface BreadboardPort {
@@ -84,6 +87,11 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
 
   // Active wire drawing color
   const [selectedWireColor, setSelectedWireColor] = useState<string>('#ef4444');
+
+  // Voltmeter / Ammeter Probes State & Active Tool
+  const [activeTool, setActiveTool] = useState<'wire' | 'probe_red' | 'probe_black'>('wire');
+  const [redProbePortId, setRedProbePortId] = useState<string | null>('led_1_anode');
+  const [blackProbePortId, setBlackProbePortId] = useState<string | null>('ard_1_gnd_1');
 
   // Currently pending port while drawing a wire
   const [pendingPort, setPendingPort] = useState<BreadboardPort | null>(null);
@@ -329,6 +337,45 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
   );
   const isMotorActive = isSupplyOn && motorPosConnected && motorNegConnected;
 
+  // Calculate potential at any port dynamically
+  const getPortPotential = (portId: string | null): number => {
+    if (!portId) return 0;
+    if (
+      portId.includes('gnd') || 
+      portId.includes('bb_gnd') || 
+      portId === 'led_1_cathode' || 
+      portId === 'mot_1_neg' || 
+      portId === 'srv_1_gnd'
+    ) {
+      return 0.0;
+    }
+    if (portId.includes('5v') || portId.includes('bb_vcc') || portId === 'srv_1_vcc') {
+      return isSupplyOn ? supplyVoltage : 0.0;
+    }
+    if (portId.includes('3v3')) {
+      return isSupplyOn ? 3.3 : 0.0;
+    }
+    if (portId === 'r_1_p1') {
+      return isSupplyOn && isVCCConnectedToR ? supplyVoltage : 0.0;
+    }
+    if (portId === 'r_1_p2' || portId === 'led_1_anode') {
+      if (isLEDActive) return 2.05;
+      if (isSupplyOn && isVCCConnectedToR) return supplyVoltage;
+      return 0.0;
+    }
+    if (portId === 'mot_1_pos') {
+      return isMotorActive ? 5.0 : 0.0;
+    }
+    return 0.0;
+  };
+
+  const redPort = allPorts.find(p => p.id === redProbePortId);
+  const blackPort = allPorts.find(p => p.id === blackProbePortId);
+  const redPotential = getPortPotential(redProbePortId);
+  const blackPotential = getPortPotential(blackProbePortId);
+  const measuredVoltage = redProbePortId && blackProbePortId ? (redPotential - blackPotential) : 0.0;
+  const measuredCurrentMA = isLEDActive ? 13.4 : isMotorActive ? 280.0 : 0.0;
+
   // Stable ref for probe measurement callback to prevent render loop
   const onProbeRef = useRef(onProbeMeasurement);
   useEffect(() => {
@@ -337,19 +384,30 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
 
   useEffect(() => {
     if (onProbeRef.current) {
-      const v = isLEDActive ? 2.05 : isMotorActive ? 5.0 : supplyVoltage;
-      const i = isLEDActive ? 0.015 : isMotorActive ? 0.28 : 0.001;
-      onProbeRef.current(v, i, 220);
+      onProbeRef.current(measuredVoltage, measuredCurrentMA / 1000, 220);
     }
-  }, [isLEDActive, isMotorActive, supplyVoltage]);
+  }, [measuredVoltage, measuredCurrentMA]);
 
   // Handle clicking on a port
   const handlePortClick = (port: BreadboardPort) => {
+    // If placing Red probe
+    if (activeTool === 'probe_red') {
+      setRedProbePortId(port.id);
+      setActiveTool('wire');
+      return;
+    }
+
+    // If placing Black probe
+    if (activeTool === 'probe_black') {
+      setBlackProbePortId(port.id);
+      setActiveTool('wire');
+      return;
+    }
+
+    // Standard wire drawing
     if (!pendingPort) {
-      // Start a new wire
       setPendingPort(port);
     } else {
-      // Complete the wire connection if it's a different port
       if (pendingPort.id !== port.id) {
         const newWire: InteractiveWire = {
           id: `wire_${Date.now()}`,
@@ -573,6 +631,138 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
         </div>
       </div>
 
+      {/* Integrated Live Voltmeter & Ammeter Instrument HUD Panel */}
+      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-3.5 rounded-2xl border-2 border-amber-500/40 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
+        {/* Left: Voltmeter & Ammeter 7-Segment Displays */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Voltmeter Display */}
+          <div className="bg-black/90 px-3.5 py-2 rounded-xl border border-amber-500/60 shadow-inner flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-amber-400">
+              <Gauge className="w-4 h-4" />
+              <span className="font-bold text-[11px]">فولتميتر الجهد (V):</span>
+            </div>
+            <div className="font-mono text-xl font-black text-amber-300 tracking-wider">
+              {measuredVoltage >= 0 ? `+${measuredVoltage.toFixed(3)}` : measuredVoltage.toFixed(3)}
+              <span className="text-xs text-amber-400 ml-1">V DC</span>
+            </div>
+          </div>
+
+          {/* Ammeter Display */}
+          <div className="bg-black/90 px-3.5 py-2 rounded-xl border border-emerald-500/60 shadow-inner flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-emerald-400">
+              <Activity className="w-4 h-4" />
+              <span className="font-bold text-[11px]">أميتر التيار (I):</span>
+            </div>
+            <div className="font-mono text-xl font-black text-emerald-300 tracking-wider">
+              {measuredCurrentMA.toFixed(1)}
+              <span className="text-xs text-emerald-400 ml-1">mA</span>
+            </div>
+          </div>
+
+          {/* Probe Nodes Connection Label */}
+          <div className="hidden lg:flex flex-col text-[10px] text-slate-300 font-mono">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+              المجس (+): <strong className="text-white">{redPort ? redPort.name : 'غير محدد'}</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
+              المجس (-): <strong className="text-white">{blackPort ? blackPort.name : 'غير محدد'}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Quick Probe Tools & Snapping Buttons */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Active Tool Selectors */}
+          <button
+            onClick={() => {
+              setPendingPort(null);
+              setActiveTool(activeTool === 'probe_red' ? 'wire' : 'probe_red');
+            }}
+            className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition text-xs ${
+              activeTool === 'probe_red'
+                ? 'bg-red-600 text-white ring-2 ring-white scale-105'
+                : 'bg-slate-800 text-red-300 hover:bg-slate-700'
+            }`}
+            title="انقر على أي منفذ لتثبيت المجس الأحمر (+)"
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+            <span>نقل مجس (+) الأحمر</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setPendingPort(null);
+              setActiveTool(activeTool === 'probe_black' ? 'wire' : 'probe_black');
+            }}
+            className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition text-xs ${
+              activeTool === 'probe_black'
+                ? 'bg-slate-700 text-white ring-2 ring-white scale-105'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+            title="انقر على أي منفذ لتثبيت المجس الأسود (COM)"
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+            <span>نقل مجس (-) الأسود</span>
+          </button>
+
+          {/* Quick presets for measuring */}
+          <button
+            onClick={() => {
+              setRedProbePortId('led_1_anode');
+              setBlackProbePortId('led_1_cathode');
+              setActiveTool('wire');
+            }}
+            className="px-2 py-1.5 bg-slate-900 hover:bg-amber-600 rounded-lg text-slate-300 hover:text-white transition text-[11px] font-medium"
+          >
+            قياس الدايود LED
+          </button>
+
+          <button
+            onClick={() => {
+              setRedProbePortId('r_1_p1');
+              setBlackProbePortId('r_1_p2');
+              setActiveTool('wire');
+            }}
+            className="px-2 py-1.5 bg-slate-900 hover:bg-amber-600 rounded-lg text-slate-300 hover:text-white transition text-[11px] font-medium"
+          >
+            قياس المقاومة R1
+          </button>
+
+          <button
+            onClick={() => {
+              setRedProbePortId('ard_1_5v');
+              setBlackProbePortId('ard_1_gnd_1');
+              setActiveTool('wire');
+            }}
+            className="px-2 py-1.5 bg-slate-900 hover:bg-amber-600 rounded-lg text-slate-300 hover:text-white transition text-[11px] font-medium"
+          >
+            قياس 5V / GND
+          </button>
+        </div>
+      </div>
+
+      {/* Tool Tip Notice if in Probe Placement Mode */}
+      {activeTool !== 'wire' && (
+        <div className="bg-amber-950/80 border border-amber-500/60 p-2.5 rounded-xl text-xs flex items-center justify-between text-amber-200 animate-pulse">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              {activeTool === 'probe_red' 
+                ? 'انقر على أي منفذ باللوحة لتثبيت مجس الفولتميتر الأحمر (+) وقياس جهده!' 
+                : 'انقر على أي منفذ باللوحة لتثبيت مجس الفولتميتر الأسود (COM -) كنقطة مرجع!'}
+            </span>
+          </div>
+          <button
+            onClick={() => setActiveTool('wire')}
+            className="px-2 py-0.5 bg-amber-900 hover:bg-amber-800 text-white rounded text-[11px] font-bold"
+          >
+            إلغاء (رجوع لرسم الأسلاك)
+          </button>
+        </div>
+      )}
+
       {/* Pending Port Tip Bar */}
       {pendingPort && (
         <div className="bg-purple-950/70 border border-purple-500/60 p-2.5 rounded-xl text-xs flex items-center justify-between text-purple-200 animate-pulse">
@@ -656,6 +846,47 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
               className="animate-pulse"
               strokeLinecap="round"
             />
+          )}
+
+          {/* Render Active Voltmeter Probes (Red V+ & Black COM-) */}
+          {redPort && (
+            <g className="pointer-events-none">
+              {/* Flexible Red Probe Lead Wire */}
+              <path
+                d={`M 680 15 Q ${Math.max(680, redPort.x)} ${(redPort.y + 15) / 2 + 30} ${redPort.x} ${redPort.y}`}
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth={3}
+                strokeLinecap="round"
+                opacity={0.9}
+                style={{ filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.7))' }}
+              />
+              {/* Probe Terminal Head */}
+              <circle cx={redPort.x} cy={redPort.y} r={10} fill="#dc2626" stroke="#ffffff" strokeWidth={2.5} className="animate-pulse" />
+              <text x={redPort.x} y={redPort.y + 3.5} textAnchor="middle" fontSize="8" fill="#ffffff" fontWeight="900" fontFamily="monospace">
+                V+
+              </text>
+            </g>
+          )}
+
+          {blackPort && (
+            <g className="pointer-events-none">
+              {/* Flexible Black Probe Lead Wire */}
+              <path
+                d={`M 740 15 Q ${Math.min(740, blackPort.x)} ${(blackPort.y + 15) / 2 + 30} ${blackPort.x} ${blackPort.y}`}
+                fill="none"
+                stroke="#0f172a"
+                strokeWidth={3.5}
+                strokeLinecap="round"
+                opacity={0.9}
+                style={{ filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.7))' }}
+              />
+              {/* Probe Terminal Head */}
+              <circle cx={blackPort.x} cy={blackPort.y} r={10} fill="#090d16" stroke="#38bdf8" strokeWidth={2.5} className="animate-pulse" />
+              <text x={blackPort.x} y={blackPort.y + 3.5} textAnchor="middle" fontSize="7" fill="#38bdf8" fontWeight="900" fontFamily="monospace">
+                COM
+              </text>
+            </g>
           )}
         </svg>
 

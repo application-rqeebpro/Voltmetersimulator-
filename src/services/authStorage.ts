@@ -1,4 +1,4 @@
-import { StudentUser, Experiment } from '../types/mechatronics';
+import { StudentUser, Experiment, AcademicYear } from '../types/mechatronics';
 
 const USERS_STORAGE_KEY = 'yemen_mechatronics_users_v1';
 const CURRENT_USER_KEY = 'yemen_mechatronics_current_user_v1';

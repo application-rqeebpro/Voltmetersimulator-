@@ -25,6 +25,7 @@ import { ArduinoSimulator } from './components/ArduinoSimulator';
 import { ScienceCalculators } from './components/ScienceCalculators';
 import { AILabAdvisorModal } from './components/AILabAdvisorModal';
 import { LabReportModal } from './components/LabReportModal';
+import { VoltmeterSimulator } from './components/VoltmeterSimulator';
 
 import { LoginPage } from './components/LoginPage';
 import { OwnerAdminModal } from './components/OwnerAdminModal';
@@ -64,7 +65,7 @@ export default function App() {
 
   // Active Main Navigation Tab
   const [activeTab, setActiveTab] = useState<
-    'curriculum' | 'workbench' | 'pid' | 'robotics' | 'plc' | 'pneumatics' | 'arduino' | 'calculators'
+    'curriculum' | 'workbench' | 'voltmeter' | 'pid' | 'robotics' | 'plc' | 'pneumatics' | 'arduino' | 'calculators'
   >('curriculum');
 
   // Currently Selected Experiment
@@ -342,6 +343,15 @@ export default function App() {
                 الملتيميتر (DMM)
               </button>
               <button
+                onClick={() => setActiveTab('voltmeter')}
+                className={`px-2 py-1 rounded-lg transition font-medium flex items-center gap-1 ${
+                  activeTab === 'voltmeter' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-amber-400 hover:text-amber-200'
+                }`}
+              >
+                <Gauge className="w-3.5 h-3.5" />
+                <span>محاكي فولتميتر</span>
+              </button>
+              <button
                 onClick={() => setShowPowerSupply(!showPowerSupply)}
                 className={`px-2 py-1 rounded-lg transition font-medium ${
                   showPowerSupply ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-slate-200'
@@ -379,6 +389,18 @@ export default function App() {
           >
             <Zap className="w-4 h-4" />
             <span>لوحة التجارب والمحاكاة الحرة (Breadboard & Circuit)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('voltmeter')}
+            className={`px-3 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap font-bold ${
+              activeTab === 'voltmeter'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'text-amber-400 hover:text-amber-300 hover:bg-slate-800'
+            }`}
+          >
+            <Gauge className="w-4 h-4" />
+            <span>محاكي الفولتميتر والقياسات (Voltmeter Lab)</span>
           </button>
 
           <button
@@ -663,7 +685,10 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 3: PID Control Systems Lab */}
+        {/* Tab: Dedicated Voltmeter & Multimeter Laboratory */}
+        {activeTab === 'voltmeter' && <VoltmeterSimulator />}
+
+        {/* Tab: PID Control Systems Lab */}
         {activeTab === 'pid' && <PIDControlLab />}
 
         {/* Tab 4: Robotics Manipulator Lab */}
