@@ -19,6 +19,8 @@ export interface StudentUser {
   isActivated: boolean;
   registeredAt: string;
   role: 'student' | 'owner';
+  expiresAt?: string;
+  accessDuration?: string;
 }
 
 export interface NewLessonToolPayload {

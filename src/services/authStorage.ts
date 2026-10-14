@@ -188,8 +188,132 @@ export const authStorage = {
       };
     }
 
+    // Check expiration date if specified
+    if (user.expiresAt && user.expiresAt !== 'unlimited') {
+      const expDate = new Date(user.expiresAt);
+      if (!isNaN(expDate.getTime()) && expDate.getTime() < Date.now()) {
+        return {
+          success: false,
+          user,
+          notActivated: true,
+          message: `انتهت صلاحية هذا الحساب في تاريخ (${user.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785502919.`
+        };
+      }
+    }
+
     this.setCurrentUser(user);
     return { success: true, user, message: 'تم تسجيل الدخول بنجاح' };
+  },
+
+  createAccountByOwner(payload: {
+    phone: string;
+    password?: string;
+    duration: '1month' | '3months' | '6months' | '1year' | 'unlimited';
+    name?: string;
+    university?: string;
+    academicYear?: AcademicYear;
+  }): { 
+    success: boolean; 
+    user?: StudentUser; 
+    plainPassword?: string; 
+    message: string; 
+    isUpdate?: boolean; 
+    expiresAtText: string;
+  } {
+    const cleanPhone = payload.phone.trim();
+    if (!cleanPhone || cleanPhone.length < 6) {
+      return {
+        success: false,
+        message: 'يرجى إدخال رقم هاتف صالح (6 أرقام على الأقل)',
+        expiresAtText: ''
+      };
+    }
+
+    const plainPassword = payload.password && payload.password.trim() 
+      ? payload.password.trim() 
+      : `${Math.floor(100000 + Math.random() * 900000)}EUI`;
+
+    // Calculate expiration date
+    let expiresAt: string | undefined = undefined;
+    let expiresAtText = 'بدون انتهاء (وصول دائم)';
+    const now = new Date();
+
+    if (payload.duration === '1month') {
+      const d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      expiresAt = d.toISOString().split('T')[0];
+      expiresAtText = `${expiresAt} (شهر واحد)`;
+    } else if (payload.duration === '3months') {
+      const d = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      expiresAt = d.toISOString().split('T')[0];
+      expiresAtText = `${expiresAt} (3 أشهر)`;
+    } else if (payload.duration === '6months') {
+      const d = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+      expiresAt = d.toISOString().split('T')[0];
+      expiresAtText = `${expiresAt} (6 أشهر)`;
+    } else if (payload.duration === '1year') {
+      const d = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      expiresAt = d.toISOString().split('T')[0];
+      expiresAtText = `${expiresAt} (سنة كاملة)`;
+    } else {
+      expiresAt = 'unlimited';
+      expiresAtText = 'وصول دائم غير منتهي';
+    }
+
+    const users = this.getUsers();
+    const existingIndex = users.findIndex(u => u.phone === cleanPhone);
+
+    if (existingIndex !== -1) {
+      // Update existing account
+      const existingUser = users[existingIndex];
+      existingUser.password = plainPassword;
+      existingUser.isActivated = true;
+      existingUser.isAcademySubscriber = true;
+      existingUser.expiresAt = expiresAt;
+      existingUser.accessDuration = payload.duration;
+      if (payload.name && payload.name.trim()) existingUser.name = payload.name.trim();
+      if (payload.university && payload.university.trim()) existingUser.university = payload.university.trim();
+      if (payload.academicYear) existingUser.academicYear = payload.academicYear;
+
+      users[existingIndex] = existingUser;
+      this.saveUsers(users);
+
+      return {
+        success: true,
+        user: existingUser,
+        plainPassword,
+        isUpdate: true,
+        expiresAtText,
+        message: `تم تحديث حساب الطالب (${existingUser.name}) بنجاح وتعيين كلمة المرور الجديدة وتمديد الصلاحية حتى ${expiresAtText}.`
+      };
+    }
+
+    // Create brand new user
+    const newUser: StudentUser = {
+      id: `usr_owner_${Date.now()}`,
+      name: payload.name && payload.name.trim() ? payload.name.trim() : `مهندس ميكاترونكس (${cleanPhone.slice(-4)})`,
+      phone: cleanPhone,
+      password: plainPassword,
+      university: payload.university || 'جامعة صنعاء',
+      academicYear: payload.academicYear || 1,
+      isAcademySubscriber: true,
+      isActivated: true,
+      registeredAt: now.toISOString().split('T')[0],
+      role: 'student',
+      expiresAt,
+      accessDuration: payload.duration
+    };
+
+    users.push(newUser);
+    this.saveUsers(users);
+
+    return {
+      success: true,
+      user: newUser,
+      plainPassword,
+      isUpdate: false,
+      expiresAtText,
+      message: `تم إنشاء الحساب بنجاح وتفعيله مع صلاحية: ${expiresAtText}.`
+    };
   },
 
   loginOwner(password: string): { success: boolean; user?: StudentUser; message: string } {

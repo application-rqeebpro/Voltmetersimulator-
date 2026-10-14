@@ -24,10 +24,15 @@ import {
   RefreshCw,
   Smartphone,
   Globe,
-  Lock
+  Lock,
+  Send,
+  MessageSquare,
+  Calendar,
+  UserPlus
 } from 'lucide-react';
 import { StudentUser, Experiment, AcademicYear, LabCategory } from '../types/mechatronics';
 import { authStorage, DEFAULT_OWNER_PASSWORD, MASTER_OWNER_PASSWORDS } from '../services/authStorage';
+import { YEMENI_UNIVERSITIES } from '../data/curriculumData';
 
 interface OwnerAdminModalProps {
   isOpen: boolean;
@@ -40,11 +45,30 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   onClose,
   onLessonAdded,
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'activate' | 'add_lesson' | 'security'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'create_account' | 'activate' | 'add_lesson' | 'security'>('users');
   const [usersList, setUsersList] = useState<StudentUser[]>([]);
   const [phoneToActivate, setPhoneToActivate] = useState<string>('');
   const [activationFeedback, setActivationFeedback] = useState<{ success: boolean; msg: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Tab 'create_account' state (Create Account & Send Credentials)
+  const [createPhone, setCreatePhone] = useState<string>('');
+  const [createPassword, setCreatePassword] = useState<string>('');
+  const [createDuration, setCreateDuration] = useState<'1month' | '3months' | '6months' | '1year' | 'unlimited'>('3months');
+  const [createStudentName, setCreateStudentName] = useState<string>('');
+  const [createUniv, setCreateUniv] = useState<string>('جامعة صنعاء');
+  const [createAcademicYear, setCreateAcademicYear] = useState<AcademicYear>(1);
+  const [createFeedback, setCreateFeedback] = useState<{ success: boolean; msg: string; isUpdate?: boolean } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    phone: string;
+    password: string;
+    duration: string;
+    expiresAtText: string;
+    labUrl: string;
+    studentName: string;
+    formattedMessage: string;
+  } | null>(null);
+  const [copiedCredentials, setCopiedCredentials] = useState<boolean>(false);
 
   // Password management state
   const [currentOwnerPassword, setCurrentOwnerPassword] = useState<string>(DEFAULT_OWNER_PASSWORD);
@@ -76,6 +100,71 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleGeneratePassword = () => {
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const suffixes = ['EUI', 'MEC', 'LAB', 'YEM', 'ENG'];
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    setCreatePassword(`${randomDigits}${suffix}`);
+  };
+
+  const handleCreateAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateFeedback(null);
+    setCreatedCredentials(null);
+
+    const cleanPhone = createPhone.trim();
+    if (!cleanPhone) {
+      setCreateFeedback({ success: false, msg: 'يرجى إدخال رقم الهاتف أولاً' });
+      return;
+    }
+
+    const res = authStorage.createAccountByOwner({
+      phone: cleanPhone,
+      password: createPassword,
+      duration: createDuration,
+      name: createStudentName,
+      university: createUniv,
+      academicYear: createAcademicYear
+    });
+
+    setCreateFeedback({ success: res.success, msg: res.message, isUpdate: res.isUpdate });
+
+    if (res.success && res.user && res.plainPassword) {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mechatronics-yemen.edu.ye';
+      const formattedMessage = `🎓 مرحباً بك في المختبر الافتراضي لمهندسي الميكاترونكس - أكاديمية الميكاترونكس اليمنية\n\nتم إنشاء وتفعيل حسابك الرسمي في المختبر بنجاح:\n📱 رقم الهاتف: ${cleanPhone}\n🔑 كلمة المرور: ${res.plainPassword}\n⏳ مدة الصلاحية: ${res.expiresAtText}\n🌐 رابط الدخول للمعمل:\n${origin}\n\nنتمنى لك تجارب هندسية ملهمة وموفقة!`;
+
+      setCreatedCredentials({
+        phone: cleanPhone,
+        password: res.plainPassword,
+        duration: createDuration,
+        expiresAtText: res.expiresAtText,
+        labUrl: origin,
+        studentName: res.user.name,
+        formattedMessage
+      });
+
+      setUsersList(authStorage.getUsers());
+    }
+  };
+
+  const handleSendViaWhatsApp = () => {
+    if (!createdCredentials) return;
+    let targetPhone = createdCredentials.phone.replace(/\D/g, '');
+    if (targetPhone.startsWith('0')) targetPhone = targetPhone.substring(1);
+    if (!targetPhone.startsWith('967') && targetPhone.length === 9) {
+      targetPhone = `967${targetPhone}`;
+    }
+    const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(createdCredentials.formattedMessage)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleCopyCredentials = () => {
+    if (!createdCredentials) return;
+    navigator.clipboard.writeText(createdCredentials.formattedMessage);
+    setCopiedCredentials(true);
+    setTimeout(() => setCopiedCredentials(false), 3000);
+  };
 
   const handleActivateByPhone = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -245,6 +334,21 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
           </button>
 
           <button
+            onClick={() => {
+              setActiveTab('create_account');
+              setCreateFeedback(null);
+            }}
+            className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'create_account'
+                ? 'border-emerald-500 text-emerald-400 bg-slate-900/40'
+                : 'border-transparent text-emerald-400/90 hover:text-emerald-300'
+            }`}
+          >
+            <UserPlus className="w-4 h-4 text-emerald-400" />
+            <span>إنشاء حساب وإرسال بيانات الدخول</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('activate')}
             className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'activate'
@@ -286,16 +390,28 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
           {/* TAB 1: USERS LIST & ACTIVATION TOGGLE */}
           {activeTab === 'users' && (
             <div className="space-y-3">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="البحث بالاسم أو رقم الهاتف أو الجامعة..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-9 pl-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60"
-                />
+              {/* Search Bar & Add User Action */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="البحث بالاسم أو رقم الهاتف أو الجامعة..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-9 pl-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveTab('create_account');
+                    setCreateFeedback(null);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow shrink-0"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>إنشاء حساب جديد</span>
+                </button>
               </div>
 
               {/* Table */}
@@ -400,6 +516,227 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* TAB: CREATE ACCOUNT AND SEND CREDENTIALS */}
+          {activeTab === 'create_account' && (
+            <div className="max-w-2xl mx-auto space-y-5 bg-slate-950/70 p-5 sm:p-6 rounded-3xl border border-emerald-500/30">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white text-base">إنشاء حساب وإرسال بيانات الدخول</h4>
+                    <p className="text-xs text-slate-400">
+                      إنشاء حساب رسمي لأي شخص ومنحه صلاحية دخول المختبر مع تحديد مدة الصلاحية وإرسال البيانات فوراً
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  لوحة المالك
+                </span>
+              </div>
+
+              <form onSubmit={handleCreateAccount} className="space-y-4 text-xs">
+                {/* 1. Phone Number (Primary field) */}
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>1. رقم الهاتف (الحقل الأساسي للحساب) *</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500">مطلوب للدخول والتحقق</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      required
+                      value={createPhone}
+                      onChange={(e) => setCreatePhone(e.target.value)}
+                      placeholder="مثال: 771234567 أو 734567890 أو 785502919"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-sm tracking-wider focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Password with manual entry & generate button */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-slate-300 font-bold flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                      <span>2. كلمة المرور *</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleGeneratePassword}
+                      className="px-2.5 py-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-bold flex items-center gap-1 transition"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>توليد كلمة مرور (مثال: 654321EUI)</span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={createPassword}
+                      onChange={(e) => setCreatePassword(e.target.value)}
+                      placeholder="أدخل كلمة المرور يدوياً أو اضغط «توليد كلمة مرور»"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-sm tracking-wider focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Access Duration */}
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                    <span>3. مدة الوصول وصلاحية دخول المختبر *</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[
+                      { id: '1month', label: 'شهر واحد' },
+                      { id: '3months', label: '3 أشهر (فصل)' },
+                      { id: '6months', label: '6 أشهر' },
+                      { id: '1year', label: 'سنة كاملة' },
+                      { id: 'unlimited', label: 'بدون انتهاء' },
+                    ].map((dur) => (
+                      <button
+                        key={dur.id}
+                        type="button"
+                        onClick={() => setCreateDuration(dur.id as any)}
+                        className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition border ${
+                          createDuration === dur.id
+                            ? 'bg-purple-600 text-white border-purple-400 shadow-md'
+                            : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+                        }`}
+                      >
+                        {dur.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Optional fields: Student Name & University */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-slate-400 block mb-1">اسم الطالب أو المهندس (اختياري):</label>
+                    <input
+                      type="text"
+                      value={createStudentName}
+                      onChange={(e) => setCreateStudentName(e.target.value)}
+                      placeholder="مثال: المهندس محمد الأكوع"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">الجامعة اليمنية:</label>
+                    <select
+                      value={createUniv}
+                      onChange={(e) => setCreateUniv(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      {YEMENI_UNIVERSITIES.map((u) => (
+                        <option key={u.id} value={u.nameAr}>
+                          {u.nameAr}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold transition shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 text-sm mt-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>إنشاء الحساب وتجهيز بيانات الدخول</span>
+                </button>
+              </form>
+
+              {/* Feedback if updated or error */}
+              {createFeedback && (
+                <div
+                  className={`p-3.5 rounded-2xl text-xs flex items-center gap-2 ${
+                    createFeedback.success
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  {createFeedback.success ? (
+                    <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  )}
+                  <span>{createFeedback.msg}</span>
+                </div>
+              )}
+
+              {/* Ready-to-Send Credentials Card */}
+              {createdCredentials && (
+                <div className="bg-slate-900 border-2 border-emerald-500/50 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl animate-fadeIn">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs sm:text-sm">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <span>بيانات الدخول جاهزة للإرسال لصاحب الحساب:</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                      تم الحفظ والتفعيل
+                    </span>
+                  </div>
+
+                  {/* Summary grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-sans block text-[11px]">رقم الهاتف:</span>
+                      <strong className="text-white text-sm tracking-wider">{createdCredentials.phone}</strong>
+                    </div>
+
+                    <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-sans block text-[11px]">كلمة المرور:</span>
+                      <strong className="text-amber-300 text-sm tracking-wider">{createdCredentials.password}</strong>
+                    </div>
+
+                    <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-sans block text-[11px]">صلاحية الوصول:</span>
+                      <span className="text-purple-300 font-sans font-bold">{createdCredentials.expiresAtText}</span>
+                    </div>
+
+                    <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-sans block text-[11px]">رابط المختبر:</span>
+                      <span className="text-blue-300 text-[11px] truncate block">{createdCredentials.labUrl}</span>
+                    </div>
+                  </div>
+
+                  {/* Pre-formatted Message Preview */}
+                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed select-all">
+                    {createdCredentials.formattedMessage}
+                  </div>
+
+                  {/* Sending Actions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyCredentials}
+                      className="py-2.5 px-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition shadow"
+                    >
+                      {copiedCredentials ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedCredentials ? 'تم نسخ الرسالة بالكامل!' : 'نسخ بيانات الدخول'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSendViaWhatsApp}
+                      className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition shadow"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>إرسال عبر واتساب مباشرة</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

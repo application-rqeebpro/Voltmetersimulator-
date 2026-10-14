@@ -583,7 +583,7 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-0.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800 text-xs font-mono">
             <button
-              onClick={() => setZoom(z => Math.max(0.4, Number((z - 0.1).toFixed(1))))}
+              onClick={() => setZoom(z => Math.max(0.35, Number((z - 0.1).toFixed(1))))}
               className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded font-bold"
               title="تصغير اللوحة"
             >
@@ -596,6 +596,19 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
               title="تكبير اللوحة"
             >
               +
+            </button>
+            <button
+              onClick={() => {
+                const w = window.innerWidth;
+                if (w < 480) setZoom(0.36);
+                else if (w < 768) setZoom(0.55);
+                else if (w < 1024) setZoom(0.75);
+                else setZoom(1.0);
+              }}
+              className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-purple-400 rounded text-[10px] font-bold mr-1 border border-slate-800"
+              title="ملاءمة حجم اللوحة تلقائياً مع شاشتك"
+            >
+              ملاءمة
             </button>
           </div>
 
