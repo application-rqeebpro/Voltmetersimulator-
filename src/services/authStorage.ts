@@ -1,15 +1,17 @@
-import { StudentUser, Experiment, AcademicYear } from '../types/mechatronics';
+import { StudentUser, Experiment, AcademicYear, AccessRequest } from '../types/mechatronics';
 
 const USERS_STORAGE_KEY = 'yemen_mechatronics_users_v1';
+const REQUESTS_STORAGE_KEY = 'yemen_mechatronics_requests_v1';
 const CURRENT_USER_KEY = 'yemen_mechatronics_current_user_v1';
 const CUSTOM_LESSONS_KEY = 'yemen_mechatronics_custom_lessons_v1';
 const OWNER_PASSWORD_STORAGE_KEY = 'yemen_mechatronics_owner_pwd_v1';
+const DB_STATUS_CACHE_KEY = 'yemen_mechatronics_db_status_cache';
 
 // Default master recovery keys for the owner (primary: owner's direct phone number 785502919)
 export const DEFAULT_OWNER_PASSWORD = '785502919';
 export const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
 
-// Pre-seeded initial mock users so the platform is ready
+// Initial seeded mock users as local fallback
 const INITIAL_USERS: StudentUser[] = [
   {
     id: 'usr_demo_1',
@@ -49,7 +51,25 @@ const INITIAL_USERS: StudentUser[] = [
   }
 ];
 
+export interface NeonDbStatus {
+  connected: boolean;
+  hasDatabaseUrl: boolean;
+  databaseName?: string;
+  latencyMs?: number;
+  pgVersion?: string;
+  stats?: {
+    totalUsers: number;
+    activatedUsers: number;
+    totalRequests: number;
+    pendingRequests: number;
+  };
+  maskedDatabaseUrl?: string;
+  message?: string;
+  error?: string;
+}
+
 export const authStorage = {
+  // Local storage cache getters and setters
   getUsers(): StudentUser[] {
     try {
       const data = localStorage.getItem(USERS_STORAGE_KEY);
@@ -68,6 +88,23 @@ export const authStorage = {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
     } catch (e) {
       console.error('Failed to save users', e);
+    }
+  },
+
+  getAccessRequests(): AccessRequest[] {
+    try {
+      const data = localStorage.getItem(REQUESTS_STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveAccessRequests(requests: AccessRequest[]) {
+    try {
+      localStorage.setItem(REQUESTS_STORAGE_KEY, JSON.stringify(requests));
+    } catch (e) {
+      console.error('Failed to save requests', e);
     }
   },
 
@@ -92,7 +129,6 @@ export const authStorage = {
     }
   },
 
-  // Owner Password management
   getOwnerPassword(): string {
     try {
       const custom = localStorage.getItem(OWNER_PASSWORD_STORAGE_KEY);
@@ -109,8 +145,10 @@ export const authStorage = {
     }
     try {
       localStorage.setItem(OWNER_PASSWORD_STORAGE_KEY, clean);
+      // Also sync to Neon DB in background
+      this.updateOwnerPasswordInDatabase(clean).catch(() => {});
       return { success: true, message: `تم تحديث كلمة سر المالك بنجاح إلى: (${clean})` };
-    } catch (e) {
+    } catch {
       return { success: false, message: 'تعذر حفظ كلمة المرور في المتصفح' };
     }
   },
@@ -118,8 +156,211 @@ export const authStorage = {
   resetOwnerPassword(): { success: boolean; password: string } {
     try {
       localStorage.removeItem(OWNER_PASSWORD_STORAGE_KEY);
+      this.updateOwnerPasswordInDatabase(DEFAULT_OWNER_PASSWORD).catch(() => {});
     } catch {}
     return { success: true, password: DEFAULT_OWNER_PASSWORD };
+  },
+
+  // ==========================================
+  // NEON POSTGRESQL CLOUD DATABASE INTEGRATION
+  // ==========================================
+
+  async checkDatabaseStatus(): Promise<NeonDbStatus> {
+    try {
+      const res = await fetch('/api/db-status', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data: NeonDbStatus = await res.json();
+        localStorage.setItem(DB_STATUS_CACHE_KEY, JSON.stringify(data));
+        return data;
+      }
+      return {
+        connected: false,
+        hasDatabaseUrl: false,
+        message: `استجابة الخادم: ${res.status}`
+      };
+    } catch (error: any) {
+      return {
+        connected: false,
+        hasDatabaseUrl: false,
+        message: 'تعذر الاتصال بـ /api/db-status في الخادم'
+      };
+    }
+  },
+
+  // Full asynchronous login contacting Neon DB first, then fallback to local
+  async loginUserAsync(phone: string, password: string): Promise<{
+    success: boolean;
+    user?: StudentUser;
+    message: string;
+    notActivated?: boolean;
+    dbConnected?: boolean;
+  }> {
+    const cleanPhone = phone.trim();
+    const cleanPass = password.trim();
+
+    try {
+      const response = await fetch('/api/auth?action=login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone, password: cleanPass })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.user) {
+        this.setCurrentUser(data.user);
+        // Sync into local users cache
+        const localUsers = this.getUsers();
+        const idx = localUsers.findIndex(u => u.phone === cleanPhone);
+        if (idx !== -1) {
+          localUsers[idx] = data.user;
+        } else {
+          localUsers.push(data.user);
+        }
+        this.saveUsers(localUsers);
+
+        return {
+          success: true,
+          user: data.user,
+          message: data.message || 'تم تسجيل الدخول بنجاح من قاعدة بيانات Neon',
+          dbConnected: true
+        };
+      }
+
+      if (data.notActivated) {
+        return {
+          success: false,
+          notActivated: true,
+          user: data.user,
+          message: data.message || 'الحساب غير مفعّل بعد في قاعدة البيانات.',
+          dbConnected: true
+        };
+      }
+
+      if (response.status === 401 || response.status === 403 || response.status === 404) {
+        return {
+          success: false,
+          message: data.message || 'بيانات الدخول غير صحيحة.',
+          dbConnected: true
+        };
+      }
+    } catch (e) {
+      console.warn('Network call to Neon DB failed, falling back to local storage cache:', e);
+    }
+
+    // Fallback to local storage if network is offline or server didn't respond
+    return this.loginUser(cleanPhone, cleanPass);
+  },
+
+  loginUser(phone: string, password: string): { success: boolean; user?: StudentUser; message: string; notActivated?: boolean } {
+    const users = this.getUsers();
+    const cleanPhone = phone.trim();
+    const user = users.find(u => u.phone === cleanPhone);
+
+    if (!user) {
+      return { success: false, message: 'رقم الهاتف غير مسجل في المنصة. يرجى إنشاء حساب جديد' };
+    }
+
+    if (user.password !== password) {
+      return { success: false, message: 'كلمة المرور غير صحيحة' };
+    }
+
+    if (!user.isActivated) {
+      return { 
+        success: false, 
+        user,
+        notActivated: true, 
+        message: 'الحساب غير مفعّل بعد. يرجى التواصل مع المالك لتفعيل الاشتراك عبر الرقم 785502919' 
+      };
+    }
+
+    if (user.expiresAt && user.expiresAt !== 'unlimited') {
+      const expDate = new Date(user.expiresAt);
+      if (!isNaN(expDate.getTime()) && expDate.getTime() < Date.now()) {
+        return {
+          success: false,
+          user,
+          notActivated: true,
+          message: `انتهت صلاحية هذا الحساب في تاريخ (${user.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785502919.`
+        };
+      }
+    }
+
+    this.setCurrentUser(user);
+    return { success: true, user, message: 'تم تسجيل الدخول بنجاح' };
+  },
+
+  // Full asynchronous registration to Neon DB
+  async registerUserAsync(payload: {
+    name: string;
+    phone: string;
+    password: string;
+    university: string;
+    academicYear?: AcademicYear;
+    isAcademySubscriber: boolean;
+  }): Promise<{
+    success: boolean;
+    user?: StudentUser;
+    message: string;
+    requiresActivation?: boolean;
+    dbConnected?: boolean;
+  }> {
+    const cleanPhone = payload.phone.trim();
+    const cleanName = payload.name.trim();
+
+    try {
+      const response = await fetch('/api/auth?action=register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          phone: cleanPhone,
+          name: cleanName,
+          deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'الهاتف'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Also save to local storage cache
+        const localUsers = this.getUsers();
+        const existingIdx = localUsers.findIndex(u => u.phone === cleanPhone);
+        if (existingIdx !== -1) {
+          localUsers[existingIdx] = data.user;
+        } else {
+          localUsers.push(data.user);
+        }
+        this.saveUsers(localUsers);
+
+        return {
+          success: true,
+          user: data.user,
+          requiresActivation: true,
+          message: data.message || 'تم حفظ طلب الاشتراك في قاعدة بيانات Neon المشتركة وإرساله للوحة المالك.',
+          dbConnected: true
+        };
+      }
+
+      if (data.alreadyExists) {
+        return {
+          success: false,
+          message: data.message || 'رقم الهاتف مسجل بالفعل مسبقاً في قاعدة البيانات.',
+          dbConnected: true
+        };
+      }
+
+      if (data.message) {
+        return { success: false, message: data.message, dbConnected: true };
+      }
+    } catch (e) {
+      console.warn('Network call to Neon DB failed during registration, saving locally:', e);
+    }
+
+    // Fallback: save to local storage
+    return this.registerUser(payload);
   },
 
   registerUser(payload: {
@@ -158,53 +399,341 @@ export const authStorage = {
     users.push(newUser);
     this.saveUsers(users);
 
+    // Also trigger cloud push asynchronously in background
+    fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: cleanPhone,
+        name: payload.name.trim(),
+        university: payload.university,
+        academicYear: payload.academicYear || 1,
+        isAcademySubscriber: payload.isAcademySubscriber,
+        deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'الهاتف'
+      })
+    }).catch(() => {});
+
     return {
       success: true,
       user: newUser,
       requiresActivation: true,
-      message: 'تم إنشاء الحساب بنجاح! حسابك في انتظار تفعيل المالك.'
+      message: 'تم إرسال طلب الدخول بنجاح! حسابك في انتظار تفعيل المالك.'
     };
   },
 
-  loginUser(phone: string, password: string): { success: boolean; user?: StudentUser; message: string; notActivated?: boolean } {
-    const users = this.getUsers();
+  // Owner data sync with Neon DB
+  async getOwnerDataFromDatabase(): Promise<{
+    success: boolean;
+    users: StudentUser[];
+    requests: AccessRequest[];
+    ownerPassword?: string;
+    stats?: { totalUsers: number; activatedUsers: number; pendingRequests: number };
+    dbConnected: boolean;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch('/api/owner?action=data', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.dbConnected && Array.isArray(data.users)) {
+          this.saveUsers(data.users);
+          if (Array.isArray(data.requests)) {
+            this.saveAccessRequests(data.requests);
+          }
+          if (data.ownerPassword) {
+            localStorage.setItem(OWNER_PASSWORD_STORAGE_KEY, data.ownerPassword);
+          }
+          return {
+            success: true,
+            users: data.users,
+            requests: data.requests || [],
+            ownerPassword: data.ownerPassword,
+            stats: data.stats,
+            dbConnected: true
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn('Failed to fetch owner data from Neon DB:', e);
+    }
+
+    // Fallback to local storage
+    return {
+      success: false,
+      users: this.getUsers(),
+      requests: this.getAccessRequests(),
+      ownerPassword: this.getOwnerPassword(),
+      dbConnected: false
+    };
+  },
+
+  // Owner activates student in Neon DB
+  async activateUserByPhoneInDatabase(phone: string): Promise<{ success: boolean; message: string; user?: StudentUser }> {
     const cleanPhone = phone.trim();
-    const user = users.find(u => u.phone === cleanPhone);
-
-    if (!user) {
-      return { success: false, message: 'رقم الهاتف غير مسجل في المنصة. يرجى إنشاء حساب جديد' };
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'activate-phone', phone: cleanPhone })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        // Also update local storage
+        this.activateUserByPhone(cleanPhone);
+        return { success: true, message: data.message, user: data.user };
+      }
+      if (data.message) {
+        return { success: false, message: data.message };
+      }
+    } catch (e) {
+      console.warn('Could not activate on Neon DB, updating local storage:', e);
     }
 
-    if (user.password !== password) {
-      return { success: false, message: 'كلمة المرور غير صحيحة' };
+    return this.activateUserByPhone(cleanPhone);
+  },
+
+  // Owner toggles user activation in Neon DB
+  async toggleUserActivationInDatabase(userId: string): Promise<{ success: boolean; isActivated: boolean }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle-activation', userId })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        this.toggleUserActivation(userId);
+        return { success: true, isActivated: data.isActivated };
+      }
+    } catch (e) {
+      console.warn('Could not toggle on Neon DB, updating local storage:', e);
     }
 
-    if (!user.isActivated) {
-      return { 
-        success: false, 
-        user,
-        notActivated: true, 
-        message: 'الحساب غير مفعّل بعد. يرجى التواصل مع المالك لتفعيل الاشتراك عبر الرقم 785502919' 
+    return this.toggleUserActivation(userId);
+  },
+
+  // Owner creates account directly in Neon DB
+  async createAccountByOwnerInDatabase(payload: {
+    phone: string;
+    password?: string;
+    duration: '1month' | '3months' | '6months' | '1year' | 'unlimited';
+    name?: string;
+    university?: string;
+    academicYear?: AcademicYear;
+  }): Promise<{
+    success: boolean;
+    user?: StudentUser;
+    plainPassword?: string;
+    message: string;
+    expiresAtText: string;
+    dbConnected?: boolean;
+  }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-account',
+          ...payload
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        // Also save to local storage cache
+        const localRes = this.createAccountByOwner(payload);
+        return {
+          success: true,
+          user: data.user || localRes.user,
+          plainPassword: data.plainPassword || localRes.plainPassword,
+          expiresAtText: data.expiresAtText || localRes.expiresAtText,
+          message: data.message || localRes.message,
+          dbConnected: true
+        };
+      }
+    } catch (e) {
+      console.warn('Could not create account on Neon DB, falling back to local storage:', e);
+    }
+
+    const localRes = this.createAccountByOwner(payload);
+    return {
+      ...localRes,
+      dbConnected: false
+    };
+  },
+
+  // Update owner password in Neon DB
+  async updateOwnerPasswordInDatabase(newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-password', newPassword })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        return { success: true, message: data.message };
+      }
+    } catch (e) {
+      console.warn('Could not update password on Neon DB:', e);
+    }
+    return { success: true, message: `تم حفظ كلمة سر المالك محلياً: (${newPassword})` };
+  },
+
+  // Test real read/write to Neon DB
+  async testDatabaseReadWrite(): Promise<{
+    success: boolean;
+    connected: boolean;
+    writeLatencyMs?: number;
+    readLatencyMs?: number;
+    totalRoundTripMs?: number;
+    message: string;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch('/api/db-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test-rw' })
+      });
+      const data = await response.json();
+      return data;
+    } catch (e: any) {
+      return {
+        success: false,
+        connected: false,
+        message: `تعذر الاتصال بـ /api/db-status: ${e?.message || String(e)}`
+      };
+    }
+  },
+
+  // Force database schema init / sync
+  async forceDatabaseInit(): Promise<{ success: boolean; message: string; tables?: string[] }> {
+    try {
+      const response = await fetch('/api/db-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'init' })
+      });
+      const data = await response.json();
+      return data;
+    } catch (e: any) {
+      return {
+        success: false,
+        message: `فشل إعادة تهيئة الجداول: ${e?.message || String(e)}`
+      };
+    }
+  },
+
+  // Update specific student access (duration, password) in Neon DB
+  async updateUserAccessInDatabase(payload: {
+    userId?: string;
+    phone: string;
+    newPassword?: string;
+    duration?: '1month' | '3months' | '6months' | '1year' | 'unlimited';
+  }): Promise<{
+    success: boolean;
+    user?: StudentUser;
+    plainPassword?: string;
+    expiresAtText?: string;
+    message: string;
+  }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update-user-access',
+          ...payload
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        return data;
+      }
+      if (data.message) {
+        return { success: false, message: data.message };
+      }
+    } catch (e) {
+      console.warn('Could not update user access on Neon DB:', e);
+    }
+
+    // Local fallback update
+    const users = this.getUsers();
+    const idx = users.findIndex(u => u.phone === payload.phone || u.id === payload.userId);
+    if (idx !== -1) {
+      if (payload.newPassword) users[idx].password = payload.newPassword;
+      if (payload.duration) {
+        users[idx].accessDuration = payload.duration;
+        if (payload.duration === 'unlimited') {
+          users[idx].expiresAt = 'unlimited';
+        } else {
+          const d = new Date();
+          const days = payload.duration === '1month' ? 30 : payload.duration === '3months' ? 90 : payload.duration === '6months' ? 180 : 365;
+          users[idx].expiresAt = new Date(d.getTime() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        }
+      }
+      this.saveUsers(users);
+      return {
+        success: true,
+        user: users[idx],
+        plainPassword: payload.newPassword,
+        expiresAtText: users[idx].expiresAt,
+        message: 'تم تحديث بيانات الحساب محلياً'
       };
     }
 
-    // Check expiration date if specified
-    if (user.expiresAt && user.expiresAt !== 'unlimited') {
-      const expDate = new Date(user.expiresAt);
-      if (!isNaN(expDate.getTime()) && expDate.getTime() < Date.now()) {
-        return {
-          success: false,
-          user,
-          notActivated: true,
-          message: `انتهت صلاحية هذا الحساب في تاريخ (${user.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785502919.`
-        };
-      }
-    }
-
-    this.setCurrentUser(user);
-    return { success: true, user, message: 'تم تسجيل الدخول بنجاح' };
+    return { success: false, message: 'المستخدم غير موجود' };
   },
 
+  // Delete user from Neon DB
+  async deleteUserFromDatabase(userId: string, phone?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-user', userId, phone })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        // Also remove from local
+        const users = this.getUsers().filter(u => u.id !== userId && u.phone !== phone);
+        this.saveUsers(users);
+        return { success: true, message: data.message };
+      }
+    } catch (e) {
+      console.warn('Could not delete from Neon DB, removing locally:', e);
+    }
+    const users = this.getUsers().filter(u => u.id !== userId && u.phone !== phone);
+    this.saveUsers(users);
+    return { success: true, message: 'تم حذف الحساب محلياً' };
+  },
+
+  // Delete request from Neon DB
+  async deleteRequestFromDatabase(requestId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-request', requestId })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const reqs = this.getAccessRequests().filter(r => r.id !== requestId);
+        this.saveAccessRequests(reqs);
+        return { success: true, message: data.message };
+      }
+    } catch (e) {
+      console.warn('Could not delete request from Neon DB:', e);
+    }
+    const reqs = this.getAccessRequests().filter(r => r.id !== requestId);
+    this.saveAccessRequests(reqs);
+    return { success: true, message: 'تم إزالة الطلب محلياً' };
+  },
+
+  // Owner Account Creation in local storage
   createAccountByOwner(payload: {
     phone: string;
     password?: string;
@@ -233,7 +762,6 @@ export const authStorage = {
       ? payload.password.trim() 
       : `${Math.floor(100000 + Math.random() * 900000)}EUI`;
 
-    // Calculate expiration date
     let expiresAt: string | undefined = undefined;
     let expiresAtText = 'بدون انتهاء (وصول دائم)';
     const now = new Date();
@@ -263,7 +791,6 @@ export const authStorage = {
     const existingIndex = users.findIndex(u => u.phone === cleanPhone);
 
     if (existingIndex !== -1) {
-      // Update existing account
       const existingUser = users[existingIndex];
       existingUser.password = plainPassword;
       existingUser.isActivated = true;
@@ -287,7 +814,6 @@ export const authStorage = {
       };
     }
 
-    // Create brand new user
     const newUser: StudentUser = {
       id: `usr_owner_${Date.now()}`,
       name: payload.name && payload.name.trim() ? payload.name.trim() : `مهندس ميكاترونكس (${cleanPhone.slice(-4)})`,
@@ -319,8 +845,6 @@ export const authStorage = {
   loginOwner(password: string): { success: boolean; user?: StudentUser; message: string } {
     const cleanPass = password.trim();
     const activeOwnerPass = this.getOwnerPassword();
-
-    // Valid if matches active custom password OR any master recovery key
     const isValid = cleanPass === activeOwnerPass || MASTER_OWNER_PASSWORDS.includes(cleanPass);
 
     if (isValid) {
@@ -407,6 +931,7 @@ export const authStorage = {
       ownerPhone: '785502919',
       currentOwnerPassword: this.getOwnerPassword(),
       users: this.getUsers(),
+      requests: this.getAccessRequests(),
       customLessons: this.getCustomLessons()
     }, null, 2);
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
   Phone, 
@@ -17,9 +17,11 @@ import {
   UserPlus,
   HelpCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Database,
+  Loader2
 } from 'lucide-react';
-import { authStorage } from '../services/authStorage';
+import { authStorage, NeonDbStatus } from '../services/authStorage';
 import { StudentUser, AcademicYear } from '../types/mechatronics';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -33,6 +35,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onOpenOwnerModal,
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [neonStatus, setNeonStatus] = useState<NeonDbStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  useEffect(() => {
+    authStorage.checkDatabaseStatus()
+      .then((status) => setNeonStatus(status))
+      .catch(() => {});
+  }, []);
 
   // Login form
   const [loginPhone, setLoginPhone] = useState<string>('');
@@ -60,7 +70,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [ownerPassError, setOwnerPassError] = useState<string | null>(null);
 
   // Handle Student Login
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
 
@@ -69,18 +79,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       return;
     }
 
-    const res = authStorage.loginUser(loginPhone, loginPassword);
-    if (res.success && res.user) {
-      onLoginSuccess(res.user);
-    } else if (res.notActivated && res.user) {
-      setPendingActivationUser(res.user);
-    } else {
-      setLoginError(res.message);
+    setIsSubmitting(true);
+    try {
+      const res = await authStorage.loginUserAsync(loginPhone, loginPassword);
+      if (res.success && res.user) {
+        onLoginSuccess(res.user);
+      } else if (res.notActivated && res.user) {
+        setPendingActivationUser(res.user);
+      } else {
+        setLoginError(res.message);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Handle Student Registration
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError(null);
 
@@ -96,19 +111,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     const selectedUnivName = regUniversity === 'جامعة اخرى' ? (otherUniversityName.trim() || 'جامعة أخرى') : regUniversity;
 
-    const res = authStorage.registerUser({
-      name: regName,
-      phone: regPhone,
-      password: regPassword,
-      university: selectedUnivName,
-      academicYear: regAcademicYear,
-      isAcademySubscriber: isAcademySubscriber
-    });
+    setIsSubmitting(true);
+    try {
+      const res = await authStorage.registerUserAsync({
+        name: regName,
+        phone: regPhone,
+        password: regPassword,
+        university: selectedUnivName,
+        academicYear: regAcademicYear,
+        isAcademySubscriber: isAcademySubscriber
+      });
 
-    if (res.success && res.user) {
-      setPendingActivationUser(res.user);
-    } else {
-      setRegError(res.message);
+      if (res.success && res.user) {
+        setPendingActivationUser(res.user);
+      } else {
+        setRegError(res.message);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

@@ -23,6 +23,19 @@ export interface StudentUser {
   accessDuration?: string;
 }
 
+export interface AccessRequest {
+  id: string;
+  phone: string;
+  name: string;
+  university: string;
+  academicYear: AcademicYear;
+  isAcademySubscriber: boolean;
+  status: 'pending' | 'approved' | 'rejected';
+  deviceInfo?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
 export interface NewLessonToolPayload {
   title: string;
   titleEn: string;

@@ -28,10 +28,18 @@ import {
   Send,
   MessageSquare,
   Calendar,
-  UserPlus
+  UserPlus,
+  Database,
+  Inbox,
+  Server,
+  Clock,
+  Loader2,
+  Trash2,
+  Edit3,
+  Filter
 } from 'lucide-react';
-import { StudentUser, Experiment, AcademicYear, LabCategory } from '../types/mechatronics';
-import { authStorage, DEFAULT_OWNER_PASSWORD, MASTER_OWNER_PASSWORDS } from '../services/authStorage';
+import { StudentUser, Experiment, AcademicYear, LabCategory, AccessRequest } from '../types/mechatronics';
+import { authStorage, DEFAULT_OWNER_PASSWORD, MASTER_OWNER_PASSWORDS, NeonDbStatus } from '../services/authStorage';
 import { YEMENI_UNIVERSITIES } from '../data/curriculumData';
 
 interface OwnerAdminModalProps {
@@ -45,8 +53,13 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   onClose,
   onLessonAdded,
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'create_account' | 'activate' | 'add_lesson' | 'security'>('users');
+  const [activeTab, setActiveTab] = useState<'requests' | 'users' | 'create_account' | 'activate' | 'neon_db' | 'add_lesson' | 'security'>('requests');
   const [usersList, setUsersList] = useState<StudentUser[]>([]);
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+  const [neonStatus, setNeonStatus] = useState<NeonDbStatus | null>(null);
+  const [isLoadingDb, setIsLoadingDb] = useState<boolean>(false);
+  const [requestActionFeedback, setRequestActionFeedback] = useState<{ success: boolean; msg: string } | null>(null);
+
   const [phoneToActivate, setPhoneToActivate] = useState<string>('');
   const [activationFeedback, setActivationFeedback] = useState<{ success: boolean; msg: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -70,6 +83,23 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   } | null>(null);
   const [copiedCredentials, setCopiedCredentials] = useState<boolean>(false);
 
+  // User Access Editing State (Extend validity, change/generate password)
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<StudentUser | null>(null);
+  const [editPasswordInput, setEditPasswordInput] = useState<string>('');
+  const [editDurationInput, setEditDurationInput] = useState<'1month' | '3months' | '6months' | '1year' | 'unlimited'>('3months');
+  const [editUserFeedback, setEditUserFeedback] = useState<{ success: boolean; msg: string; plainPassword?: string } | null>(null);
+  const [copiedEditCredentials, setCopiedEditCredentials] = useState<boolean>(false);
+
+  // Neon DB Diagnostics State
+  const [isTestingRw, setIsTestingRw] = useState<boolean>(false);
+  const [rwTestResult, setRwTestResult] = useState<any>(null);
+  const [isForcingInit, setIsForcingInit] = useState<boolean>(false);
+  const [forceInitResult, setForceInitResult] = useState<any>(null);
+
+  // Requests Tab State
+  const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('pending');
+  const [requestSearch, setRequestSearch] = useState<string>('');
+
   // Password management state
   const [currentOwnerPassword, setCurrentOwnerPassword] = useState<string>(DEFAULT_OWNER_PASSWORD);
   const [newOwnerPasswordInput, setNewOwnerPasswordInput] = useState<string>('');
@@ -88,14 +118,44 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   const [newSteps, setNewSteps] = useState<string>('1. قم بتوصيل التغذية\n2. ركب الإشارة بالمنفذ الرقمي\n3. اختبر الحركة بالمعمل');
   const [lessonFeedback, setLessonFeedback] = useState<string | null>(null);
 
+  const loadData = async () => {
+    setIsLoadingDb(true);
+    try {
+      const [status, ownerData] = await Promise.all([
+        authStorage.checkDatabaseStatus(),
+        authStorage.getOwnerDataFromDatabase()
+      ]);
+      setNeonStatus(status);
+      if (ownerData.users && ownerData.users.length > 0) {
+        setUsersList(ownerData.users);
+      } else {
+        setUsersList(authStorage.getUsers());
+      }
+      if (ownerData.requests && ownerData.requests.length > 0) {
+        setAccessRequests(ownerData.requests);
+      } else {
+        setAccessRequests(authStorage.getAccessRequests());
+      }
+      if (ownerData.ownerPassword) {
+        setCurrentOwnerPassword(ownerData.ownerPassword);
+      }
+    } catch (e) {
+      console.warn('Error loading owner data from Neon DB:', e);
+      setUsersList(authStorage.getUsers());
+      setAccessRequests(authStorage.getAccessRequests());
+    } finally {
+      setIsLoadingDb(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
-      setUsersList(authStorage.getUsers());
-      setCurrentOwnerPassword(authStorage.getOwnerPassword());
+      loadData();
       setActivationFeedback(null);
       setLessonFeedback(null);
       setPasswordFeedback(null);
       setCopiedPass(false);
+      setRequestActionFeedback(null);
     }
   }, [isOpen]);
 
@@ -108,7 +168,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
     setCreatePassword(`${randomDigits}${suffix}`);
   };
 
-  const handleCreateAccount = (e: React.FormEvent) => {
+  const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateFeedback(null);
     setCreatedCredentials(null);
@@ -119,7 +179,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       return;
     }
 
-    const res = authStorage.createAccountByOwner({
+    const res = await authStorage.createAccountByOwnerInDatabase({
       phone: cleanPhone,
       password: createPassword,
       duration: createDuration,
@@ -128,7 +188,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       academicYear: createAcademicYear
     });
 
-    setCreateFeedback({ success: res.success, msg: res.message, isUpdate: res.isUpdate });
+    setCreateFeedback({ success: res.success, msg: res.message });
 
     if (res.success && res.user && res.plainPassword) {
       const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mechatronics-yemen.edu.ye';
@@ -144,7 +204,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
         formattedMessage
       });
 
-      setUsersList(authStorage.getUsers());
+      await loadData();
     }
   };
 
@@ -166,34 +226,122 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
     setTimeout(() => setCopiedCredentials(false), 3000);
   };
 
-  const handleActivateByPhone = (e?: React.FormEvent) => {
+  const handleActivateByPhone = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!phoneToActivate.trim()) return;
 
-    const res = authStorage.activateUserByPhone(phoneToActivate);
+    const res = await authStorage.activateUserByPhoneInDatabase(phoneToActivate);
     setActivationFeedback({ success: res.success, msg: res.message });
     if (res.success) {
-      setUsersList(authStorage.getUsers());
       setPhoneToActivate('');
+      await loadData();
     }
   };
 
-  const handleToggleActivation = (userId: string) => {
-    const res = authStorage.toggleUserActivation(userId);
+  const handleToggleActivation = async (userId: string) => {
+    const res = await authStorage.toggleUserActivationInDatabase(userId);
     if (res.success) {
-      setUsersList(authStorage.getUsers());
+      await loadData();
     }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleApproveRequest = async (reqItem: AccessRequest) => {
+    setRequestActionFeedback(null);
+    const res = await authStorage.activateUserByPhoneInDatabase(reqItem.phone);
+    if (res.success) {
+      setRequestActionFeedback({ success: true, msg: `تمت الموافقة وتفعيل الطالب (${reqItem.name}) برقم ${reqItem.phone} في Neon بنجاح!` });
+      await loadData();
+    } else {
+      setRequestActionFeedback({ success: false, msg: res.message });
+    }
+  };
+
+  const handleQuickCreateForRequest = (reqItem: AccessRequest) => {
+    setCreatePhone(reqItem.phone);
+    setCreateStudentName(reqItem.name);
+    setCreateUniv(reqItem.university || 'جامعة صنعاء');
+    setCreateAcademicYear(reqItem.academicYear || 1);
+    handleGeneratePassword();
+    setActiveTab('create_account');
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    await authStorage.deleteRequestFromDatabase(requestId);
+    await loadData();
+  };
+
+  const handleOpenEditUser = (user: StudentUser) => {
+    setSelectedUserForEdit(user);
+    setEditPasswordInput('');
+    setEditDurationInput((user.accessDuration as any) || '3months');
+    setEditUserFeedback(null);
+    setCopiedEditCredentials(false);
+  };
+
+  const handleSaveUserEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserForEdit) return;
+    const res = await authStorage.updateUserAccessInDatabase({
+      userId: selectedUserForEdit.id,
+      phone: selectedUserForEdit.phone,
+      newPassword: editPasswordInput || undefined,
+      duration: editDurationInput
+    });
+    setEditUserFeedback({
+      success: res.success,
+      msg: res.message,
+      plainPassword: res.plainPassword
+    });
+    if (res.success) {
+      await loadData();
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, phone: string) => {
+    if (!confirm(`هل أنت متأكد من حذف الحساب ذو الرقم ${phone} نهائياً من قاعدة البيانات؟`)) return;
+    await authStorage.deleteUserFromDatabase(userId, phone);
+    if (selectedUserForEdit?.id === userId) setSelectedUserForEdit(null);
+    await loadData();
+  };
+
+  const handleTestDatabaseRw = async () => {
+    setIsTestingRw(true);
+    setRwTestResult(null);
+    try {
+      const res = await authStorage.testDatabaseReadWrite();
+      setRwTestResult(res);
+      await loadData();
+    } catch (err: any) {
+      setRwTestResult({ success: false, message: err?.message || String(err) });
+    } finally {
+      setIsTestingRw(false);
+    }
+  };
+
+  const handleForceDatabaseInit = async () => {
+    setIsForcingInit(true);
+    setForceInitResult(null);
+    try {
+      const res = await authStorage.forceDatabaseInit();
+      setForceInitResult(res);
+      await loadData();
+    } catch (err: any) {
+      setForceInitResult({ success: false, message: err?.message || String(err) });
+    } finally {
+      setIsForcingInit(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordFeedback(null);
 
-    const res = authStorage.setOwnerPassword(newOwnerPasswordInput);
+    const res = await authStorage.updateOwnerPasswordInDatabase(newOwnerPasswordInput);
     setPasswordFeedback({ success: res.success, msg: res.message });
     if (res.success) {
-      setCurrentOwnerPassword(authStorage.getOwnerPassword());
+      setCurrentOwnerPassword(newOwnerPasswordInput);
       setNewOwnerPasswordInput('');
+      await loadData();
     }
   };
 
@@ -289,29 +437,62 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadData}
+              disabled={isLoadingDb}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-bold"
+              title="تحديث البيانات فوراً من قاعدة بيانات Neon"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDb ? 'animate-spin text-emerald-400' : ''}`} />
+              <span className="hidden sm:inline">تحديث Neon</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Quick Stats Bar */}
-        <div className="grid grid-cols-4 gap-2 p-3 bg-slate-950/70 border-b border-slate-800 text-xs text-center font-mono">
+        {/* Quick Stats Bar (Connected to Neon DB) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 bg-slate-950/70 border-b border-slate-800 text-xs text-center font-mono">
           <div className="bg-slate-900 p-2 rounded-xl border border-slate-800">
-            <span className="text-slate-400 font-sans block text-[10px]">إجمالي المسجلين</span>
+            <span className="text-slate-400 font-sans block text-[10px]">إجمالي الطلاب</span>
             <span className="text-base font-black text-white">{totalUsers}</span>
           </div>
+
           <div className="bg-slate-900 p-2 rounded-xl border border-emerald-900/40">
-            <span className="text-emerald-400 font-sans block text-[10px]">المشتركون المفعلون</span>
+            <span className="text-emerald-400 font-sans block text-[10px]">المفعلون</span>
             <span className="text-base font-black text-emerald-400">{activatedUsers}</span>
           </div>
-          <div className="bg-slate-900 p-2 rounded-xl border border-amber-900/40">
-            <span className="text-amber-400 font-sans block text-[10px]">بانتظار التفعيل</span>
-            <span className="text-base font-black text-amber-400">{pendingUsers}</span>
+
+          <div className="bg-slate-900 p-2 rounded-xl border border-blue-900/40">
+            <span className="text-blue-400 font-sans block text-[10px]">طلبات الهواتف</span>
+            <span className="text-base font-black text-blue-400">
+              {accessRequests.filter(r => r.status === 'pending').length}
+            </span>
           </div>
-          <div className="bg-slate-900 p-2 rounded-xl border border-purple-900/40">
+
+          <div 
+            onClick={() => setActiveTab('neon_db')}
+            className={`p-2 rounded-xl border cursor-pointer transition ${
+              neonStatus?.connected
+                ? 'bg-emerald-950/30 border-emerald-500/40 hover:bg-emerald-900/40'
+                : 'bg-amber-950/30 border-amber-500/40 hover:bg-amber-900/40'
+            }`}
+            title="انقر لفحص تفاصيل قاعدة بيانات Neon"
+          >
+            <span className="text-slate-400 font-sans block text-[10px]">قاعدة بيانات Neon</span>
+            <span className={`text-xs font-black flex items-center justify-center gap-1 mt-0.5 ${neonStatus?.connected ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span className={`w-2 h-2 rounded-full ${neonStatus?.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span>{neonStatus?.connected ? `متصلة (${neonStatus.latencyMs || 0}ms)` : 'غير متصلة'}</span>
+            </span>
+          </div>
+
+          <div className="bg-slate-900 p-2 rounded-xl border border-purple-900/40 col-span-2 sm:col-span-1">
             <span className="text-purple-400 font-sans block text-[10px]">كلمة سر المالك</span>
             <span className="text-xs font-black text-purple-300 truncate font-mono">
               {showPassword ? currentOwnerPassword : '•••••••'}
@@ -322,6 +503,18 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
         {/* Tab Navigation */}
         <div className="flex flex-wrap border-b border-slate-800 bg-slate-950 px-4 text-xs">
           <button
+            onClick={() => setActiveTab('requests')}
+            className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'requests'
+                ? 'border-blue-500 text-blue-400 bg-slate-900/40'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Inbox className="w-4 h-4 text-blue-400" />
+            <span>طلبات الهواتف المشتركة ({accessRequests.filter(r => r.status === 'pending').length})</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('users')}
             className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'users'
@@ -330,7 +523,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>إدارة الطلاب والمشتركين ({totalUsers})</span>
+            <span>إدارة الطلاب ({totalUsers})</span>
           </button>
 
           <button
@@ -345,7 +538,19 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
             }`}
           >
             <UserPlus className="w-4 h-4 text-emerald-400" />
-            <span>إنشاء حساب وإرسال بيانات الدخول</span>
+            <span>إنشاء حساب وإرسال البيانات</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('neon_db')}
+            className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'neon_db'
+                ? 'border-emerald-500 text-emerald-400 bg-slate-900/40'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Database className="w-4 h-4 text-emerald-400" />
+            <span>فحص قاعدة Neon</span>
           </button>
 
           <button
@@ -357,7 +562,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
             }`}
           >
             <Phone className="w-4 h-4" />
-            <span>تفعيل المشترك بالرقم</span>
+            <span>تفعيل بالرقم</span>
           </button>
 
           <button
@@ -387,7 +592,223 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
 
         {/* Body Content */}
         <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-4">
-          {/* TAB 1: USERS LIST & ACTIVATION TOGGLE */}
+          {/* TAB 0: ACCESS REQUESTS (SHARED FROM PHONES VIA NEON POSTGRESQL) */}
+          {activeTab === 'requests' && (
+            <div className="space-y-3">
+              {/* Top Filter and Header */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Inbox className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-xs text-white">طلبات اشتراك ودخول الطلاب المرسلة من الهواتف</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
+                    {accessRequests.filter(r => r.status === 'pending').length} بانتظار الموافقة
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
+                    <button
+                      onClick={() => setRequestFilter('pending')}
+                      className={`px-2.5 py-1 rounded-lg transition ${
+                        requestFilter === 'pending' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      بانتظار التفعيل ({accessRequests.filter(r => r.status === 'pending').length})
+                    </button>
+                    <button
+                      onClick={() => setRequestFilter('approved')}
+                      className={`px-2.5 py-1 rounded-lg transition ${
+                        requestFilter === 'approved' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      المقبولة ({accessRequests.filter(r => r.status === 'approved').length})
+                    </button>
+                    <button
+                      onClick={() => setRequestFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg transition ${
+                        requestFilter === 'all' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      الكل ({accessRequests.length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Bar for requests */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute right-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="البحث في الطلبات بالاسم أو رقم الهاتف أو الجامعة..."
+                  value={requestSearch}
+                  onChange={(e) => setRequestSearch(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-9 pl-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {requestActionFeedback && (
+                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  requestActionFeedback.success
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                }`}>
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{requestActionFeedback.msg}</span>
+                </div>
+              )}
+
+              {/* Requests Table */}
+              <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/60">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 font-bold">
+                    <tr>
+                      <th className="p-3">الطالب / المهندس</th>
+                      <th className="p-3">رقم الهاتف</th>
+                      <th className="p-3">الجامعة والسنة</th>
+                      <th className="p-3 text-center">أكاديمية الميكاترونكس</th>
+                      <th className="p-3 text-center">حالة الطلب</th>
+                      <th className="p-3 text-center">تاريخ الإرسال</th>
+                      <th className="p-3 text-center">إجراءات المالك</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {accessRequests
+                      .filter(r => {
+                        if (requestFilter === 'pending') return r.status === 'pending';
+                        if (requestFilter === 'approved') return r.status === 'approved';
+                        return true;
+                      })
+                      .filter(r => 
+                        !requestSearch ||
+                        r.name.toLowerCase().includes(requestSearch.toLowerCase()) ||
+                        r.phone.includes(requestSearch) ||
+                        r.university.toLowerCase().includes(requestSearch.toLowerCase())
+                      )
+                      .length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-500">
+                          <Inbox className="w-8 h-8 mx-auto mb-2 opacity-40 text-blue-400" />
+                          <p>لا توجد طلبات اشتراك في هذا القسم حالياً</p>
+                          <span className="text-[11px] text-slate-600 block mt-1">
+                            عندما يقوم أي طالب بالتسجيل من هاتفه ستظهر طلباته هنا فوراً عبر قاعدة بيانات Neon
+                          </span>
+                        </td>
+                      </tr>
+                    ) : (
+                      accessRequests
+                        .filter(r => {
+                          if (requestFilter === 'pending') return r.status === 'pending';
+                          if (requestFilter === 'approved') return r.status === 'approved';
+                          return true;
+                        })
+                        .filter(r => 
+                          !requestSearch ||
+                          r.name.toLowerCase().includes(requestSearch.toLowerCase()) ||
+                          r.phone.includes(requestSearch) ||
+                          r.university.toLowerCase().includes(requestSearch.toLowerCase())
+                        )
+                        .map((req) => (
+                          <tr key={req.id} className="hover:bg-slate-900/50 transition">
+                            <td className="p-3 font-semibold text-white">
+                              <div className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-[10px]">
+                                  {req.name.charAt(0)}
+                                </span>
+                                <div>
+                                  <span>{req.name}</span>
+                                  {req.deviceInfo && (
+                                    <span className="text-[10px] text-slate-500 block font-mono">
+                                      {req.deviceInfo.includes('Mobile') || req.deviceInfo.includes('Android') || req.deviceInfo.includes('iPhone') ? '📱 هاتف ذكي' : '💻 حاسوب'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 font-mono text-slate-300">
+                              <div className="flex items-center gap-1.5">
+                                <span>{req.phone}</span>
+                                <a
+                                  href={`https://wa.me/967${req.phone.replace(/\D/g, '').replace(/^0/, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-400 hover:text-emerald-300 p-1"
+                                  title="مراسلة عبر واتساب"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            </td>
+                            <td className="p-3 text-slate-400">
+                              <div>{req.university}</div>
+                              <span className="text-[10px] text-purple-400">
+                                السنة {req.academicYear === 1 ? 'الأولى' : req.academicYear === 2 ? 'الثانية' : req.academicYear === 3 ? 'الثالثة' : req.academicYear === 4 ? 'الرابعة' : 'الخامسة'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              {req.isAcademySubscriber ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                                  <Check className="w-3 h-3" /> مشترك بالمنصة
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold">
+                                  غير مشترك
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {req.status === 'approved' ? (
+                                <span className="inline-block text-[10px] bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-bold">
+                                  مقبول ومفعّل
+                                </span>
+                              ) : (
+                                <span className="inline-block text-[10px] bg-blue-600/20 text-blue-300 border border-blue-500/40 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
+                                  معلق بانتظار الموافقة
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center font-mono text-[11px] text-slate-400">
+                              {req.createdAt ? new Date(req.createdAt).toLocaleDateString('ar-YE') : 'اليوم'}
+                            </td>
+                            <td className="p-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {req.status === 'pending' && (
+                                  <button
+                                    onClick={() => handleApproveRequest(req)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
+                                    title="تفعيل فوري للطالب"
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5" />
+                                    <span>موافقة وتفعيل</span>
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleQuickCreateForRequest(req)}
+                                  className="px-2.5 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 rounded-lg text-xs font-bold transition flex items-center gap-1"
+                                  title="إنشاء حساب وتوليد كلمة مرور"
+                                >
+                                  <KeyRound className="w-3.5 h-3.5" />
+                                  <span>تخصيص حساب</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRequest(req.id)}
+                                  className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition"
+                                  title="حذف الطلب"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 1: USERS LIST & ADVANCED ACCESS MANAGEMENT */}
           {activeTab === 'users' && (
             <div className="space-y-3">
               {/* Search Bar & Add User Action */}
@@ -423,15 +844,16 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                       <th className="p-3">رقم الهاتف</th>
                       <th className="p-3">الجامعة</th>
                       <th className="p-3 text-center">السنة الدراسية</th>
+                      <th className="p-3 text-center">الصلاحية والانتهاء</th>
                       <th className="p-3 text-center">أكاديمية الميكاترونكس</th>
                       <th className="p-3 text-center">حالة التفعيل</th>
-                      <th className="p-3 text-center">إجراء المالك</th>
+                      <th className="p-3 text-center">إجراءات المالك</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-6 text-center text-slate-500">
+                        <td colSpan={8} className="p-6 text-center text-slate-500">
                           لا يوجد طلاب يطابقون البحث
                         </td>
                       </tr>
@@ -467,9 +889,26 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                             </select>
                           </td>
                           <td className="p-3 text-center">
+                            {u.expiresAt === 'unlimited' ? (
+                              <span className="text-purple-300 font-mono text-[11px] bg-purple-950/40 border border-purple-800/50 px-2 py-0.5 rounded-lg font-bold">
+                                دائم (غير منتهي)
+                              </span>
+                            ) : u.expiresAt ? (
+                              <span className={`font-mono text-[11px] px-2 py-0.5 rounded-lg border font-bold ${
+                                new Date(u.expiresAt).getTime() < Date.now()
+                                  ? 'bg-rose-950/40 text-rose-300 border-rose-800/50'
+                                  : 'bg-slate-900 text-slate-300 border-slate-800'
+                              }`}>
+                                {u.expiresAt}
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 text-[10px]">دائم</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
                             {u.isAcademySubscriber ? (
                               <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                                <Check className="w-3 h-3" /> مشترك بالمنصة
+                                <Check className="w-3 h-3" /> مشترك
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold">
@@ -479,36 +918,48 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                           </td>
                           <td className="p-3 text-center">
                             {u.isActivated ? (
-                              <span className="inline-block text-[10px] bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-bold">
-                                مفعّل ومصرّح
+                              <span className="inline-block text-[10px] bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
+                                مفعّل
                               </span>
                             ) : (
-                              <span className="inline-block text-[10px] bg-amber-600/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
-                                معلق (بحاجة لتفعيل)
+                              <span className="inline-block text-[10px] bg-amber-600/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                معلق
                               </span>
                             )}
                           </td>
                           <td className="p-3 text-center">
-                            <button
-                              onClick={() => handleToggleActivation(u.id)}
-                              className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 mx-auto ${
-                                u.isActivated
-                                  ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/40'
-                              }`}
-                            >
-                              {u.isActivated ? (
-                                <>
-                                  <UserX className="w-3.5 h-3.5" />
-                                  <span>إلغاء التفعيل</span>
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="w-3.5 h-3.5" />
-                                  <span>تفعيل الآن</span>
-                                </>
-                              )}
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Toggle Activation Button */}
+                              <button
+                                onClick={() => handleToggleActivation(u.id)}
+                                title={u.isActivated ? 'إيقاف الحساب مؤقتاً' : 'تفعيل الحساب'}
+                                className={`p-1.5 rounded-lg text-xs font-bold transition ${
+                                  u.isActivated
+                                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow'
+                                }`}
+                              >
+                                {u.isActivated ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                              </button>
+
+                              {/* Edit Credentials & Validity Button */}
+                              <button
+                                onClick={() => handleOpenEditUser(u)}
+                                title="تعديل الصلاحية وكلمة المرور"
+                                className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete User Button */}
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.phone)}
+                                title="حذف الحساب"
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 border border-slate-700 transition"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -792,6 +1243,222 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
             </div>
           )}
 
+          {/* TAB: NEON DATABASE STATUS & REAL DIAGNOSTICS */}
+          {activeTab === 'neon_db' && (
+            <div className="space-y-4 max-w-3xl mx-auto text-xs">
+              {/* Real-time Status Card */}
+              <div className={`p-5 rounded-3xl border ${
+                neonStatus?.connected
+                  ? 'bg-slate-950/80 border-emerald-500/40 shadow-emerald-950/20 shadow-xl'
+                  : 'bg-slate-950/80 border-amber-500/40 shadow-amber-950/20 shadow-xl'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border shadow-lg ${
+                      neonStatus?.connected
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    }`}>
+                      <Database className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-white text-base">حالة الربط مع قاعدة بيانات Neon Cloud PostgreSQL</h4>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
+                          neonStatus?.connected
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${neonStatus?.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                          <span>{neonStatus?.connected ? 'متصلة وجاهزة للعمل' : 'غير متصلة حالياً'}</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        قاعدة البيانات المشتركة لحفظ طلبات الهواتف والمشتركين وصلاحيات المعمل بشكل دائم
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={loadData}
+                    disabled={isLoadingDb}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl font-bold flex items-center gap-1.5 transition self-start sm:self-auto"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDb ? 'animate-spin text-emerald-400' : ''}`} />
+                    <span>فحص وتحديث فوري</span>
+                  </button>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-4 text-xs font-mono">
+                  <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                    <span className="text-slate-400 font-sans block text-[11px]">اسم قاعدة البيانات:</span>
+                    <strong className="text-white text-sm">{neonStatus?.databaseName || 'neondb'}</strong>
+                  </div>
+
+                  <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                    <span className="text-slate-400 font-sans block text-[11px]">زمن الاستجابة (Latency):</span>
+                    <span className="text-emerald-400 font-black text-sm">
+                      {neonStatus?.latencyMs !== undefined ? `${neonStatus.latencyMs} ms` : '—'}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                    <span className="text-slate-400 font-sans block text-[11px]">الطلاب المفعلون في Neon:</span>
+                    <span className="text-purple-300 text-sm font-bold">
+                      {neonStatus?.stats ? `${neonStatus.stats.activatedUsers} / ${neonStatus.stats.totalUsers}` : totalUsers}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                    <span className="text-slate-400 font-sans block text-[11px]">طلبات الهواتف المعلقة:</span>
+                    <span className="text-blue-300 text-sm font-bold">
+                      {neonStatus?.stats?.pendingRequests ?? accessRequests.filter(r => r.status === 'pending').length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Masked Connection String */}
+                <div className="mt-3 p-3 bg-slate-900/90 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <Server className="w-4 h-4 text-slate-500 shrink-0" />
+                    <span className="text-slate-400 font-sans">رابط الاتصال المشفر:</span>
+                    <span className="text-slate-300 select-all truncate">{neonStatus?.maskedDatabaseUrl || 'DATABASE_URL (Vercel Ready)'}</span>
+                  </div>
+                  <span className="text-slate-500 font-sans text-[10px]">حماية SSL مشفرة</span>
+                </div>
+              </div>
+
+              {/* Real Diagnostic Testing Tools */}
+              <div className="bg-slate-950/80 p-5 rounded-3xl border border-slate-800 space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <h4 className="font-bold text-white text-sm">أدوات الاختبار الحقيقي لقاعدة بيانات Neon</h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Test 1: Real Read/Write Ping */}
+                  <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div className="flex items-center gap-2 text-white font-bold text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>1. اختبار القراءة والكتابة الحقيقي (Real Write & Read)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      يقوم الخادم بكتابة سجل تجريبي مؤقت في Neon، ثم قراءته ومطابقته فورياً ثم حذفه، وقياس زمن الاستجابة بدقة للتأكد من تمام الاتصال.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleTestDatabaseRw}
+                      disabled={isTestingRw}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition shadow shadow-emerald-950/40"
+                    >
+                      {isTestingRw ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>جاري تنفيذ اختبار الكتابة والقراءة...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Activity className="w-4 h-4" />
+                          <span>بدء اختبار الكتابة والقراءة الآن</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Test 2: Schema Sync */}
+                  <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div className="flex items-center gap-2 text-white font-bold text-xs">
+                      <Database className="w-4 h-4 text-purple-400" />
+                      <span>2. إعادة تهيئة وفحص الجداول (Schema Re-Sync)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      يتحقق من وجود جداول المستخدمين (users) وطلبات الهواتف (access_requests) وإعدادات النظام (system_settings) وفهارس الأرقام.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleForceDatabaseInit}
+                      disabled={isForcingInit}
+                      className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition shadow shadow-purple-950/40"
+                    >
+                      {isForcingInit ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>جاري فحص الجداول...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          <span>التحقق من جداول Neon وتحديث الهيكل</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Diagnostics Results Output */}
+                {rwTestResult && (
+                  <div className={`p-4 rounded-2xl border font-mono text-xs space-y-2 ${
+                    rwTestResult.success
+                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                      : 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+                  }`}>
+                    <div className="flex items-center gap-2 font-bold font-sans">
+                      {rwTestResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-rose-400" />}
+                      <span>نتيجة اختبار الكتابة والقراءة الحقيقي:</span>
+                    </div>
+                    <p className="text-white font-sans">{rwTestResult.message}</p>
+                    {rwTestResult.writeLatencyMs !== undefined && (
+                      <div className="flex flex-wrap gap-4 text-[11px] text-slate-300 pt-1 border-t border-slate-800/80">
+                        <span>زمن الكتابة (Write): <strong>{rwTestResult.writeLatencyMs}ms</strong></span>
+                        <span>زمن القراءة (Read): <strong>{rwTestResult.readLatencyMs}ms</strong></span>
+                        <span>إجمالي الرحلة الذهاب والإياب: <strong>{rwTestResult.totalRoundTripMs}ms</strong></span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {forceInitResult && (
+                  <div className={`p-4 rounded-2xl border text-xs space-y-1.5 ${
+                    forceInitResult.success
+                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                      : 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+                  }`}>
+                    <div className="flex items-center gap-2 font-bold">
+                      {forceInitResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-rose-400" />}
+                      <span>{forceInitResult.message}</span>
+                    </div>
+                    {forceInitResult.tables && (
+                      <span className="text-[11px] text-slate-300 block font-mono">
+                        الجداول النشطة: {forceInitResult.tables.join(' • ')}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Technical Architecture Details */}
+              <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-2 text-slate-400 text-[11px] leading-relaxed">
+                <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span>بنية الأمان والربط الفعلي مع Vercel:</span>
+                </div>
+                <p>
+                  • تم ربط المشروع بمتغير البيئة <strong>DATABASE_URL</strong> عبر نقاط النهاية السيرفرية (Serverless Functions) في مسار <code>/api/*</code>.
+                </p>
+                <p>
+                  • تُحفظ جميع طلبات تسجيل الطلاب الواردة من الهواتف الذكية في جدول <code>access_requests</code> وتظهر للوحة المالك لحظياً.
+                </p>
+                <p>
+                  • تُشفر كلمات المرور باستخدام خوارزمية <strong>bcrypt</strong> القوية قبل حفظها في جدول <code>users</code>، ولا يمكن قراءتها كنص صريح حتى في قاعدة البيانات.
+                </p>
+                <p>
+                  • تبقى الحسابات والبيانات والدروس محفوظة دائماً حتى بعد إعادة النشر أو تحديث صفحات المتصفح.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* TAB 3: ADD NEW MECHATRONICS LESSON / MATERIALS */}
           {activeTab === 'add_lesson' && (
             <form onSubmit={handleAddNewLesson} className="space-y-4 max-w-2xl mx-auto text-xs">
@@ -1042,6 +1709,149 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* MODAL: EDIT USER CREDENTIALS & VALIDITY DURATION */}
+      {selectedUserForEdit && (
+        <div className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl w-full max-w-md p-6 shadow-2xl text-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-amber-400" />
+                <h3 className="font-bold text-sm text-white">إدارة صلاحية وكلمة مرور الطالب</h3>
+              </div>
+              <button
+                onClick={() => setSelectedUserForEdit(null)}
+                className="text-slate-500 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs font-mono space-y-1">
+              <div className="text-slate-300 font-sans font-bold">{selectedUserForEdit.name}</div>
+              <div className="text-slate-400">الهاتف: <strong className="text-white">{selectedUserForEdit.phone}</strong></div>
+              <div className="text-slate-400">الجامعة: {selectedUserForEdit.university}</div>
+              <div className="text-purple-300 font-sans text-[11px]">
+                الصلاحية الحالية: {selectedUserForEdit.expiresAt === 'unlimited' ? 'وصول دائم' : selectedUserForEdit.expiresAt || 'دائم'}
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveUserEdit} className="space-y-3.5 text-xs">
+              {/* New Password */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-300 font-bold">كلمة المرور الجديدة (اختياري):</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const randomDigits = Math.floor(100000 + Math.random() * 900000);
+                      setEditPasswordInput(`${randomDigits}EUI`);
+                    }}
+                    className="text-amber-400 hover:underline text-[11px] font-bold"
+                  >
+                    توليد عشوائي (6 أرقام)
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={editPasswordInput}
+                  onChange={(e) => setEditPasswordInput(e.target.value)}
+                  placeholder="اتركه فارغاً للإبقاء على كلمة السر الحالية"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Access Duration */}
+              <div>
+                <label className="text-slate-300 font-bold block mb-1.5">تمديد أو تعديل مدة الوصول:</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { id: '1month', label: 'شهر واحد' },
+                    { id: '3months', label: '3 أشهر' },
+                    { id: '6months', label: '6 أشهر' },
+                    { id: '1year', label: 'سنة كاملة' },
+                    { id: 'unlimited', label: 'بدون انتهاء' },
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setEditDurationInput(d.id as any)}
+                      className={`py-2 px-1 rounded-xl text-center font-bold text-xs transition border ${
+                        editDurationInput === d.id
+                          ? 'bg-amber-600 text-white border-amber-400 shadow'
+                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-900'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {editUserFeedback && (
+                <div className={`p-3 rounded-xl flex items-center gap-2 ${
+                  editUserFeedback.success
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                }`}>
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{editUserFeedback.msg}</span>
+                </div>
+              )}
+
+              {/* Quick WhatsApp & Copy if password was updated */}
+              {editPasswordInput && editUserFeedback?.success && (
+                <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl space-y-2">
+                  <span className="text-[11px] font-bold text-emerald-300 block">بيانات الدخول الجديدة بعد التعديل:</span>
+                  <div className="font-mono text-[11px] text-white">
+                    <div>الهاتف: {selectedUserForEdit.phone}</div>
+                    <div>كلمة المرور: {editPasswordInput}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const msg = `مرحباً مهندس ${selectedUserForEdit.name}، تم تحديث بيانات دخولك للمختبر الافتراضي:\nالهاتف: ${selectedUserForEdit.phone}\nكلمة المرور: ${editPasswordInput}\nالرابط: ${window.location.origin}`;
+                        navigator.clipboard.writeText(msg);
+                        setCopiedEditCredentials(true);
+                        setTimeout(() => setCopiedEditCredentials(false), 2500);
+                      }}
+                      className="flex-1 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold text-[11px]"
+                    >
+                      {copiedEditCredentials ? 'تم النسخ!' : 'نسخ البيانات'}
+                    </button>
+                    <a
+                      href={`https://wa.me/967${selectedUserForEdit.phone.replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(`مرحباً مهندس ${selectedUserForEdit.name}، تم تحديث بيانات دخولك للمختبر الافتراضي:\nالهاتف: ${selectedUserForEdit.phone}\nكلمة المرور: ${editPasswordInput}\nالرابط: ${window.location.origin}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] text-center"
+                    >
+                      إرسال عبر واتساب
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition shadow-lg shadow-amber-950 flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>حفظ التعديلات في Neon</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserForEdit(null)}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

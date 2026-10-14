@@ -4,12 +4,24 @@ import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 
+import dbStatusHandler from './api/db-status';
+import requestsHandler from './api/requests';
+import authHandler from './api/auth';
+import ownerHandler from './api/owner';
+import { initDatabase, getDatabaseUrl } from './api/db';
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json());
+
+// Neon PostgreSQL database endpoints
+app.all('/api/db-status', (req: Request, res: Response) => dbStatusHandler(req, res));
+app.all('/api/requests', (req: Request, res: Response) => requestsHandler(req, res));
+app.all('/api/auth', (req: Request, res: Response) => authHandler(req, res));
+app.all('/api/owner', (req: Request, res: Response) => ownerHandler(req, res));
 
 // Initialize Google GenAI if key is present
 const apiKey = process.env.GEMINI_API_KEY || '';
@@ -88,6 +100,13 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mechatronics Virtual Lab server running on http://0.0.0.0:${PORT}`);
+    if (getDatabaseUrl()) {
+      initDatabase()
+        .then((res) => console.log('✅ Neon Database status:', res.message))
+        .catch((err) => console.error('❌ Neon Database init error:', err));
+    } else {
+      console.log('ℹ️ DATABASE_URL not set in local environment (will connect automatically when deployed on Vercel)');
+    }
   });
 }
 
