@@ -96,6 +96,7 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
   // Currently pending port while drawing a wire
   const [pendingPort, setPendingPort] = useState<BreadboardPort | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState<number>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 0.65 : 1.0));
 
   // Placed components on the lab bench
   const [components, setComponents] = useState<PlacedComponent[]>([
@@ -431,8 +432,17 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: (e.clientX - rect.left) / zoom,
+      y: (e.clientY - rect.top) / zoom
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!containerRef.current || e.touches.length === 0) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setMousePos({
+      x: (e.touches[0].clientX - rect.left) / zoom,
+      y: (e.touches[0].clientY - rect.top) / zoom
     });
   };
 
@@ -569,17 +579,35 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
           </div>
         </div>
 
-        {/* Wires counter & Clean button */}
-        <div className="flex items-center gap-2">
+        {/* Wires counter, Zoom controls & Clean button */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-0.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800 text-xs font-mono">
+            <button
+              onClick={() => setZoom(z => Math.max(0.4, Number((z - 0.1).toFixed(1))))}
+              className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded font-bold"
+              title="تصغير اللوحة"
+            >
+              -
+            </button>
+            <span className="px-1 text-[11px] text-slate-400 font-bold">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom(z => Math.min(1.5, Number((z + 0.1).toFixed(1))))}
+              className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded font-bold"
+              title="تكبير اللوحة"
+            >
+              +
+            </button>
+          </div>
+
           <span className="text-xs font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300">
-            الأسلاك النشطة: <span className="text-purple-400 font-bold">{wires.length}</span>
+            الأسلاك: <span className="text-purple-400 font-bold">{wires.length}</span>
           </span>
           <button
             onClick={() => loadPresetCircuit('clear')}
             className="px-3 py-1.5 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>مسح جميع الأسلاك</span>
+            <span className="hidden sm:inline">مسح الأسلاك</span>
           </button>
         </div>
       </div>
@@ -782,11 +810,20 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
       )}
 
       {/* Main Interactive Workbench Canvas (Relative Container) */}
-      <div
-        ref={containerRef}
-        onMouseMove={handleMouseMove}
-        className="w-full h-[620px] bg-slate-950 rounded-2xl border-2 border-slate-800 relative overflow-hidden shadow-inner cursor-crosshair select-none"
-      >
+      <div className="w-full overflow-x-auto rounded-2xl border-2 border-slate-800 shadow-inner bg-slate-950 no-scrollbar">
+        <div
+          ref={containerRef}
+          onMouseMove={handleMouseMove}
+          onTouchMove={handleTouchMove}
+          style={{
+            transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+            transformOrigin: 'top right',
+            width: zoom !== 1 ? `${Math.round(1020 * zoom)}px` : '100%',
+            minWidth: '1020px',
+            height: zoom !== 1 ? `${Math.round(620 * zoom)}px` : '620px'
+          }}
+          className="h-[620px] bg-slate-950 relative overflow-hidden cursor-crosshair select-none"
+        >
         {/* Subtle Canvas Grid Background */}
         <div className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
 
@@ -1097,6 +1134,7 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
             />
           );
         })}
+        </div>
       </div>
 
       {/* Guide Banner */}

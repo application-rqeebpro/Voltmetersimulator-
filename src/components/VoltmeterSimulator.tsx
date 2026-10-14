@@ -466,13 +466,14 @@ export const VoltmeterSimulator: React.FC = () => {
       </div>
 
       {/* Main Interactive Workbench (Canvas with Circuit & Voltmeter) */}
-      <div
-        ref={benchRef}
-        onPointerMove={handlePointerMove}
-        onPointerUp={() => setIsDragging(null)}
-        onPointerLeave={() => setIsDragging(null)}
-        className="relative bg-gradient-to-b from-slate-950 via-[#0b1329] to-slate-950 rounded-2xl h-[520px] overflow-hidden border-2 border-slate-800 shadow-2xl select-none touch-none cursor-default"
-      >
+      <div className="w-full overflow-x-auto rounded-2xl border-2 border-slate-800 shadow-2xl bg-slate-950 no-scrollbar">
+        <div
+          ref={benchRef}
+          onPointerMove={handlePointerMove}
+          onPointerUp={() => setIsDragging(null)}
+          onPointerLeave={() => setIsDragging(null)}
+          className="relative bg-gradient-to-b from-slate-950 via-[#0b1329] to-slate-950 min-w-[780px] w-full h-[520px] overflow-hidden select-none touch-none cursor-default"
+        >
         {/* Subtle grid lines background */}
         <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
 
@@ -938,6 +939,7 @@ export const VoltmeterSimulator: React.FC = () => {
           </span>
         </div>
       </div>
+    </div>
 
       {/* Educational Guide Footer */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">

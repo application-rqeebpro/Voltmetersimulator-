@@ -42,7 +42,8 @@ import {
   Cpu,
   Radio,
   FileText,
-  X
+  X,
+  SlidersHorizontal
 } from 'lucide-react';
 
 // --- Sound Synthesizer via Web Audio API ---
@@ -694,6 +695,9 @@ export function CircuitWizardLab() {
   const [showPresetsModal, setShowPresetsModal] = useState<boolean>(false);
   const [showInspector, setShowInspector] = useState<boolean>(false);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [showMobileTools, setShowMobileTools] = useState<boolean>(false);
+  const lastTouchDistRef = useRef<number | null>(null);
 
   // Student Report State
   const [studentName, setStudentName] = useState<string>('طالب هندسة ميكاترونكس');
@@ -1086,6 +1090,36 @@ export function CircuitWizardLab() {
     }
   };
 
+  // Multi-Touch Pinch to Zoom for Mobile
+  const handleCanvasTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lastTouchDistRef.current = dist;
+    }
+  };
+
+  const handleCanvasTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastTouchDistRef.current !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const diff = dist - lastTouchDistRef.current;
+      if (Math.abs(diff) > 2) {
+        const factor = diff > 0 ? 1.025 : 0.975;
+        setScale((s) => Math.min(2.5, Math.max(0.4, Number((s * factor).toFixed(2)))));
+        lastTouchDistRef.current = dist;
+      }
+    }
+  };
+
+  const handleCanvasTouchEnd = () => {
+    lastTouchDistRef.current = null;
+  };
+
   // Adding Components to Canvas
   const handleAddComponent = (
     kind: ComponentKind,
@@ -1095,14 +1129,16 @@ export function CircuitWizardLab() {
     val: number,
     unit: string
   ) => {
+    const canvasWidth = canvasRef.current?.clientWidth || 600;
+    const canvasHeight = canvasRef.current?.clientHeight || 450;
     const newComp: CircuitElement = {
       id: `c_${Date.now()}`,
       kind,
       category,
       name,
       nameAr,
-      x: Math.round(-pan.x + 360 / scale),
-      y: Math.round(-pan.y + 240 / scale),
+      x: Math.round((-pan.x + canvasWidth / 2) / scale),
+      y: Math.round((-pan.y + canvasHeight / 2) / scale),
       rotation: 0,
       value: val,
       unit,
@@ -1115,6 +1151,10 @@ export function CircuitWizardLab() {
     setElements(nextElements);
     setSelectedCompId(newComp.id);
     pushHistory(nextElements, wires);
+    // Auto-close library on mobile/tablet so student immediately interacts with component
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setLibraryOpen(false);
+    }
   };
 
   const handleDeleteSelected = () => {
@@ -1208,15 +1248,21 @@ export function CircuitWizardLab() {
   }, [elements, selectedCompId]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[640px] bg-slate-950 text-slate-100 font-sans select-none overflow-hidden rounded-2xl border border-slate-800 shadow-2xl relative">
-      {/* Top Main Toolbar */}
-      <div className="bg-slate-900 border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 z-20">
+    <div
+      className={`flex flex-col bg-slate-950 text-slate-100 font-sans select-none overflow-hidden transition-all duration-200 ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 pt-safe pb-safe pl-safe pr-safe'
+          : 'h-[75vh] min-h-[500px] md:h-[calc(100vh-140px)] md:min-h-[640px] rounded-2xl border border-slate-800 shadow-2xl relative'
+      }`}
+    >
+      {/* Top Main Toolbar - Responsive across Desktop, Tablet, and Mobile */}
+      <div className="bg-slate-900 border-b border-slate-800 px-2 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2 z-20 shrink-0">
         {/* Left: Simulation & Mode Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           {/* Play/Pause Button */}
           <button
             onClick={() => setIsRunning(!isRunning)}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-lg ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-lg shrink-0 ${
               isRunning
                 ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
@@ -1225,12 +1271,12 @@ export function CircuitWizardLab() {
             {isRunning ? (
               <>
                 <Pause className="w-4 h-4 fill-current" />
-                <span>إيقاف مؤقت</span>
+                <span className="hidden sm:inline">إيقاف مؤقت</span>
               </>
             ) : (
               <>
                 <Play className="w-4 h-4 fill-current" />
-                <span>تشغيل المحاكاة</span>
+                <span className="hidden sm:inline">تشغيل المحاكاة</span>
               </>
             )}
           </button>
@@ -1241,7 +1287,7 @@ export function CircuitWizardLab() {
               setCurrentTick(0);
               solveCircuit();
             }}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition shrink-0"
             title="إعادة ضبط المحاكاة"
           >
             <RotateCcw className="w-4 h-4" />
@@ -1250,7 +1296,7 @@ export function CircuitWizardLab() {
           {/* Sound Toggle */}
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-1.5 rounded-xl transition ${
+            className={`p-1.5 rounded-xl transition shrink-0 ${
               soundEnabled ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-500'
             }`}
             title="المؤثرات الصوتية (الصفارة والمرحل)"
@@ -1258,38 +1304,40 @@ export function CircuitWizardLab() {
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
 
-          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-800 hidden sm:block shrink-0" />
 
-          {/* View Mode Toggle: Schematic vs Real-World (Circuit Wizard Signature) */}
-          <div className="bg-slate-950 p-1 rounded-xl border border-slate-800 flex items-center text-xs">
+          {/* View Mode Toggle: Schematic vs Real-World */}
+          <div className="bg-slate-950 p-0.5 sm:p-1 rounded-xl border border-slate-800 flex items-center text-xs shrink-0">
             <button
               onClick={() => setViewMode('realworld')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+              className={`px-2 sm:px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
                 viewMode === 'realworld'
                   ? 'bg-purple-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
+              title="مظهر واقعي للمكونات"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>مظهر واقعي (Real)</span>
+              <span className="hidden xs:inline sm:inline">واقعي</span>
             </button>
             <button
               onClick={() => setViewMode('schematic')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+              className={`px-2 sm:px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
                 viewMode === 'schematic'
                   ? 'bg-purple-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
+              title="مخطط رمزي قياسي"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>رسم رمزي (Schematic)</span>
+              <span className="hidden xs:inline sm:inline">رمزي</span>
             </button>
           </div>
 
-          {/* Current Flow & Voltage Levels Toggles */}
+          {/* Desktop toggles: Current flow & Voltage levels */}
           <button
             onClick={() => setShowCurrentFlow(!showCurrentFlow)}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border transition ${
+            className={`hidden md:flex px-2 py-1 rounded-lg text-xs font-semibold items-center gap-1 border transition shrink-0 ${
               showCurrentFlow
                 ? 'bg-amber-500/10 text-amber-400 border-amber-500/40'
                 : 'bg-slate-950 text-slate-500 border-slate-800'
@@ -1297,12 +1345,12 @@ export function CircuitWizardLab() {
             title="إظهار تدفق الإلكترونات والتيار"
           >
             <Zap className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">تدفق التيار</span>
+            <span>تدفق التيار</span>
           </button>
 
           <button
             onClick={() => setShowVoltageColors(!showVoltageColors)}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border transition ${
+            className={`hidden md:flex px-2 py-1 rounded-lg text-xs font-semibold items-center gap-1 border transition shrink-0 ${
               showVoltageColors
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/40'
                 : 'bg-slate-950 text-slate-500 border-slate-800'
@@ -1310,14 +1358,23 @@ export function CircuitWizardLab() {
             title="تلوين الأسلاك حسب مستوى الجهد"
           >
             <Layers className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">مستويات الجهد</span>
+            <span>مستويات الجهد</span>
           </button>
         </div>
 
-        {/* Right: Presets, Tools, Lab Report & History */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Right: Actions, Fullscreen, Library & Mobile Tools Toggle */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Component Library Trigger Button */}
+          <button
+            onClick={() => setLibraryOpen(!libraryOpen)}
+            className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-lg shadow-purple-900/30 transition shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">{libraryOpen ? 'إغلاق المكتبة' : 'المكتبة'}</span>
+          </button>
+
           {/* Undo / Redo */}
-          <div className="flex items-center gap-0.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="hidden sm:flex items-center gap-0.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={handleUndo}
               disabled={historyIndex <= 0}
@@ -1336,22 +1393,22 @@ export function CircuitWizardLab() {
             </button>
           </div>
 
-          {/* Presets Library Modal Trigger */}
+          {/* Presets Button */}
           <button
             onClick={() => setShowPresetsModal(true)}
-            className="px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+            className="hidden md:flex px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold items-center gap-1 transition"
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">تجارب منهجية</span>
+            <span>تجارب منهجية</span>
           </button>
 
-          {/* Student Lab Report Modal Trigger */}
+          {/* Student Lab Report Button */}
           <button
             onClick={() => setShowReportModal(true)}
-            className="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+            className="hidden md:flex px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold items-center gap-1 transition"
           >
             <FileText className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">تقرير المعمل</span>
+            <span>تقرير المعمل</span>
           </button>
 
           {/* Edit Buttons for Selected Component */}
@@ -1365,11 +1422,11 @@ export function CircuitWizardLab() {
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={handleDuplicateSelected}
-                className="p-1 hover:bg-slate-800 text-slate-300 rounded-lg transition"
-                title="تكرار العنصر"
+                onClick={() => setShowInspector(!showInspector)}
+                className={`p-1 rounded-lg transition ${showInspector ? 'bg-purple-600 text-white' : 'hover:bg-slate-800 text-purple-400'}`}
+                title="خصائص العنصر"
               >
-                <Copy className="w-3.5 h-3.5" />
+                <Sliders className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleDeleteSelected}
@@ -1381,51 +1438,109 @@ export function CircuitWizardLab() {
             </div>
           )}
 
-          {/* Zoom controls */}
-          <div className="flex items-center gap-0.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-mono">
+          {/* Zoom controls (Desktop) */}
+          <div className="hidden lg:flex items-center gap-0.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-mono">
             <button
-              onClick={() => setScale((s) => Math.max(0.5, s - 0.1))}
+              onClick={() => setScale((s) => Math.max(0.4, Number((s - 0.1).toFixed(1))))}
               className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded"
             >
               -
             </button>
             <span className="px-1 text-[11px] text-slate-400 font-bold">{Math.round(scale * 100)}%</span>
             <button
-              onClick={() => setScale((s) => Math.min(2.0, s + 0.1))}
+              onClick={() => setScale((s) => Math.min(2.5, Number((s + 0.1).toFixed(1))))}
               className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded"
             >
               +
             </button>
           </div>
 
-          {/* Export / Import & Clear */}
+          {/* Mobile Tools Dropdown Button */}
           <button
-            onClick={handleExportJSON}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
-            title="تصدير الدائرة JSON"
+            onClick={() => setShowMobileTools(!showMobileTools)}
+            className="md:hidden p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+            title="المزيد من الأدوات والتجارب"
           >
-            <Download className="w-4 h-4" />
+            <SlidersHorizontal className="w-4 h-4" />
           </button>
-          <label
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition cursor-pointer"
-            title="استيراد دائرة JSON"
-          >
-            <Upload className="w-4 h-4" />
-            <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
-          </label>
+
+          {/* Fullscreen Toggle Button */}
           <button
-            onClick={handleClearCircuit}
-            className="p-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-800/40 rounded-xl transition"
-            title="مسح الدائرة بالكامل"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className={`p-1.5 rounded-xl transition ${
+              isFullscreen
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+            }`}
+            title={isFullscreen ? 'تصغير مساحة العمل' : 'ملء الشاشة بالكامل (مساحة واسعة للرسم والتوصيل)'}
           >
-            <Trash2 className="w-4 h-4" />
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
+      {/* Mobile Tools Drawer (when open on screens < md) */}
+      {showMobileTools && (
+        <div className="md:hidden bg-slate-900 border-b border-slate-800 p-2.5 flex flex-wrap items-center gap-2 text-xs z-20 animate-fadeIn">
+          <button
+            onClick={() => {
+              setShowPresetsModal(true);
+              setShowMobileTools(false);
+            }}
+            className="px-2.5 py-1.5 bg-indigo-600/30 text-indigo-300 rounded-lg font-bold flex items-center gap-1"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>تجارب منهجية</span>
+          </button>
+          <button
+            onClick={() => {
+              setShowReportModal(true);
+              setShowMobileTools(false);
+            }}
+            className="px-2.5 py-1.5 bg-emerald-600/30 text-emerald-300 rounded-lg font-bold flex items-center gap-1"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>تقرير المعمل</span>
+          </button>
+          <button
+            onClick={() => setShowCurrentFlow(!showCurrentFlow)}
+            className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 border ${
+              showCurrentFlow ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-950 text-slate-400 border-slate-800'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>تدفق التيار</span>
+          </button>
+          <button
+            onClick={() => setShowVoltageColors(!showVoltageColors)}
+            className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 border ${
+              showVoltageColors ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-950 text-slate-400 border-slate-800'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>تلوين الجهد</span>
+          </button>
+          <button
+            onClick={handleUndo}
+            disabled={historyIndex <= 0}
+            className="px-2.5 py-1.5 bg-slate-800 text-slate-300 rounded-lg font-bold flex items-center gap-1 disabled:opacity-40"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>تراجع</span>
+          </button>
+          <button
+            onClick={handleClearCircuit}
+            className="px-2.5 py-1.5 bg-red-950/60 text-red-300 rounded-lg font-bold flex items-center gap-1 mr-auto"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>مسح الدائرة</span>
+          </button>
+        </div>
+      )}
+
       {/* Warning/Alert Banner if Short Circuit or Overload */}
       {circuitAlert && (
-        <div className="bg-red-600/90 text-white px-4 py-1.5 text-xs font-bold flex items-center justify-between gap-2 shadow-lg z-20 animate-pulse">
+        <div className="bg-red-600/90 text-white px-3 sm:px-4 py-1.5 text-xs font-bold flex items-center justify-between gap-2 shadow-lg z-20 animate-pulse">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{circuitAlert.message}</span>
@@ -1436,32 +1551,34 @@ export function CircuitWizardLab() {
         </div>
       )}
 
-      {/* Main Workspace: Left Drawer (Component Library) + Canvas + Right Inspector */}
+      {/* Main Workspace: Library Drawer (Right in RTL) + Canvas + Inspector Drawer */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Floating Mobile Toggle Button for Library */}
-        <button
-          onClick={() => setLibraryOpen(!libraryOpen)}
-          className="absolute top-3 right-3 z-30 p-2 rounded-xl bg-purple-600 text-white shadow-xl hover:bg-purple-500 transition flex items-center gap-1.5 text-xs font-bold"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{libraryOpen ? 'إخفاء المكتبة' : 'مكتبة المكونات'}</span>
-        </button>
-
-        {/* Left Drawer: Circuit Wizard Component Library */}
+        {/* Backdrop for Library on Mobile & Tablet */}
         {libraryOpen && (
-          <div className="w-72 sm:w-80 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-20 shadow-2xl transition-all">
+          <div
+            className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-30 transition-opacity"
+            onClick={() => setLibraryOpen(false)}
+          />
+        )}
+
+        {/* Component Library: Docked side column on Desktop (lg), Bottom Sheet on Mobile & Tablet */}
+        {libraryOpen && (
+          <div className="fixed inset-x-0 bottom-0 max-h-[82vh] lg:static lg:w-80 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col shrink-0 z-40 rounded-t-3xl lg:rounded-none shadow-2xl transition-all">
+            {/* Drag Handle Notch for mobile */}
+            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto my-2 lg:hidden shrink-0" />
+
             {/* Library Header */}
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
+            <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Cpu className="w-4 h-4 text-purple-400" />
                 <h3 className="font-bold text-xs text-white">مكتبة مكونات Circuit Wizard</h3>
               </div>
               <button
                 onClick={() => setLibraryOpen(false)}
-                className="text-slate-400 hover:text-white p-1"
-                title="طي المكتبة"
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                title="إغلاق المكتبة"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1894,7 +2011,39 @@ export function CircuitWizardLab() {
           onPointerDown={handlePointerDownCanvas}
           onPointerMove={handlePointerMoveCanvas}
           onPointerUp={handlePointerUpCanvas}
+          onTouchStart={handleCanvasTouchStart}
+          onTouchMove={handleCanvasTouchMove}
+          onTouchEnd={handleCanvasTouchEnd}
         >
+          {/* Floating Mobile Action Button for Component Library */}
+          <button
+            onClick={() => setLibraryOpen(true)}
+            className="lg:hidden absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-500 text-white shadow-2xl flex items-center justify-center active:scale-90 transition border-2 border-purple-400/50"
+            title="مكتبة المكونات"
+            aria-label="مكتبة المكونات"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+
+          {/* Active Wiring HUD Banner */}
+          {wiringFrom && (
+            <div className="absolute top-3 left-3 right-3 sm:left-auto sm:right-3 bg-purple-900/90 border border-purple-400 p-2 rounded-xl text-xs text-white flex items-center justify-between gap-2 shadow-2xl z-20 animate-pulse">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>جاري تمديد سلك... انقر على الطرف الآخر لربطه</span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWiringFrom(null);
+                }}
+                className="px-2 py-0.5 bg-purple-950 hover:bg-purple-800 rounded text-[11px] font-bold shrink-0"
+              >
+                إلغاء
+              </button>
+            </div>
+          )}
+
           {/* Engineering Canvas Grid SVG */}
           <svg
             ref={canvasRef}
@@ -2058,11 +2207,14 @@ export function CircuitWizardLab() {
                         onClick={(e) => handlePinClick(e, comp.id, pin.id)}
                         className="cursor-pointer group/pin"
                       >
-                        <circle r="12" fill="transparent" />
+                        <circle r="22" fill="transparent" />
+                        {wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id && (
+                          <circle r="12" fill="none" stroke="#a855f7" strokeWidth="2.5" className="animate-ping opacity-75" />
+                        )}
                         <circle
-                          r="4"
-                          fill="#0f172a"
-                          stroke={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? '#a855f7' : '#e2e8f0'}
+                          r={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? 5.5 : 4}
+                          fill={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? '#a855f7' : '#0f172a'}
+                          stroke={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? '#ffffff' : '#e2e8f0'}
                           strokeWidth="2"
                           className="transition-colors group-hover/pin:stroke-amber-400 group-hover/pin:fill-amber-400"
                         />
@@ -2084,7 +2236,7 @@ export function CircuitWizardLab() {
           </svg>
 
           {/* Quick HUD Tip on Bottom-Left */}
-          <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 p-2.5 rounded-xl text-[11px] text-slate-300 pointer-events-none max-w-xs shadow-lg space-y-1 z-10">
+          <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 p-2.5 rounded-xl text-[11px] text-slate-300 pointer-events-none max-w-xs shadow-lg space-y-1 z-10 hidden sm:block">
             <div className="flex items-center gap-1.5 font-bold text-white">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
               <span>مختبر سيركت ويزارد للهواتف والكمبيوتر</span>
@@ -2095,20 +2247,31 @@ export function CircuitWizardLab() {
           </div>
         </div>
 
+        {/* Backdrop for Inspector on Mobile & Tablet */}
+        {showInspector && selectedComp && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity"
+            onClick={() => setShowInspector(false)}
+          />
+        )}
+
         {/* Right Inspector Drawer (Properties for Selected Component) */}
         {showInspector && selectedComp && (
-          <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 p-4 flex flex-col justify-between shrink-0 z-20 space-y-4 shadow-2xl">
+          <div className="fixed inset-x-0 bottom-0 max-h-[75vh] lg:static lg:w-72 bg-slate-900/98 backdrop-blur-lg border-t lg:border-t-0 lg:border-r border-slate-800 p-4 flex flex-col justify-between shrink-0 z-40 space-y-4 shadow-2xl rounded-t-3xl lg:rounded-none overflow-y-auto">
+            {/* Drag Notch for Mobile */}
+            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto -mt-1 mb-1 lg:hidden shrink-0" />
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2 shrink-0">
                 <div className="flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-purple-400" />
                   <h4 className="font-bold text-xs text-white">خصائص العنصر</h4>
                 </div>
                 <button
                   onClick={() => setShowInspector(false)}
-                  className="text-slate-400 hover:text-white text-xs"
+                  className="text-slate-400 hover:text-white p-1 rounded-lg"
+                  title="إغلاق الخصائص"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 

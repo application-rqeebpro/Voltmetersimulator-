@@ -56,10 +56,16 @@ import {
   ArrowRight,
   LogOut,
   ShieldCheck,
-  User
+  User,
+  Menu,
+  X,
+  SlidersHorizontal,
+  ChevronDown
 } from 'lucide-react';
 
 export default function App() {
+  // Mobile Navigation Drawer Toggle
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   // Selected University & Academic Year
   const [selectedUniv, setSelectedUniv] = useState<UniversityInfo>(YEMENI_UNIVERSITIES[0]);
   const [selectedYear, setSelectedYear] = useState<AcademicYear | 'all'>('all');
@@ -183,202 +189,277 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-600 selection:text-white">
       {/* Top Engineering University Brand Bar */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md bg-slate-900/90">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md bg-slate-900/95 pt-safe">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
           {/* Logo & Platform Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-400 p-0.5 shadow-lg shadow-purple-900/30">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Cpu className="w-5 h-5 text-emerald-400" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-400 p-0.5 shadow-lg shadow-purple-900/30 shrink-0">
+              <div className="w-full h-full bg-slate-950 rounded-[10px] sm:rounded-[14px] flex items-center justify-center">
+                <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-black tracking-tight text-white">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-xs sm:text-base font-black tracking-tight text-white truncate">
                   المعمل الافتراضي لمهندسي الميكاترونكس
                 </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
                   جامعات اليمن
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] sm:text-xs text-slate-400 truncate hidden sm:block">
                 Mechatronics Virtual Engineering Laboratory • Yemeni Universities Edition
               </p>
             </div>
           </div>
 
-          {/* User Status Badge & Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Logged in Student / User Badge */}
-            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-bold text-white">{currentUser.name}</span>
+          {/* User Status & Mobile Menu Toggle */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Student User Name Badge */}
+            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="font-bold text-white max-w-[85px] sm:max-w-[130px] truncate">{currentUser.name}</span>
               {currentUser.role === 'owner' ? (
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold border border-amber-500/40">
+                <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-bold border border-amber-500/40">
                   المالك
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-400 hidden lg:inline">
+                <span className="text-[10px] text-slate-400 hidden xl:inline">
                   ({currentUser.university})
                 </span>
               )}
             </div>
 
-            {/* PWA Mobile Install Button */}
-            <PWAInstallButton variant="primary" />
+            {/* Desktop Actions Bar (visible on lg screens and up) */}
+            <div className="hidden lg:flex items-center gap-1.5">
+              {/* PWA Mobile Install Button */}
+              <PWAInstallButton variant="primary" />
 
-            {/* Owner Admin Button */}
-            <button
-              onClick={() => setShowOwnerModal(true)}
-              className="px-2.5 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
-              title="لوحة تحكم وإدارة المالك"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">لوحة المالك</span>
-            </button>
-
-            {/* University Dropdown */}
-            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs">
-              <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
-              <select
-                value={selectedUniv.id}
-                onChange={(e) => {
-                  const u = YEMENI_UNIVERSITIES.find(x => x.id === e.target.value);
-                  if (u) setSelectedUniv(u);
-                }}
-                className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer max-w-[130px] truncate"
+              {/* Owner Admin Button */}
+              <button
+                onClick={() => setShowOwnerModal(true)}
+                className="px-2.5 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                title="لوحة تحكم وإدارة المالك"
               >
-                {YEMENI_UNIVERSITIES.map(u => (
-                  <option key={u.id} value={u.id} className="bg-slate-900 text-white">
-                    {u.nameAr}
-                  </option>
-                ))}
-              </select>
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>لوحة المالك</span>
+              </button>
+
+              {/* University Dropdown */}
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs">
+                <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+                <select
+                  value={selectedUniv.id}
+                  onChange={(e) => {
+                    const u = YEMENI_UNIVERSITIES.find(x => x.id === e.target.value);
+                    if (u) setSelectedUniv(u);
+                  }}
+                  className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer max-w-[125px] truncate"
+                >
+                  {YEMENI_UNIVERSITIES.map(u => (
+                    <option key={u.id} value={u.id} className="bg-slate-900 text-white">
+                      {u.nameAr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* AI Advisor Button */}
+              <button
+                onClick={() => setShowAIAdvisor(true)}
+                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-purple-900/30"
+              >
+                <Bot className="w-3.5 h-3.5 animate-pulse" />
+                <span>المشرف (AI)</span>
+              </button>
+
+              {/* Official Lab Report Button */}
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>تقرير (PDF)</span>
+              </button>
+
+              {/* Logout Button */}
+              <button
+                onClick={() => {
+                  authStorage.setCurrentUser(null);
+                  setCurrentUser(null);
+                }}
+                className="px-2 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-800 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+                title="تسجيل الخروج"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>خروج</span>
+              </button>
             </div>
 
-            {/* AI Advisor Button */}
+            {/* Mobile / Tablet Menu Button */}
             <button
-              onClick={() => setShowAIAdvisor(true)}
-              className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-purple-900/30"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center justify-center"
+              aria-label="القائمة"
             >
-              <Bot className="w-3.5 h-3.5 animate-pulse" />
-              <span className="hidden sm:inline">المشرف (AI)</span>
-            </button>
-
-            {/* Official Lab Report Button */}
-            <button
-              onClick={() => setShowReportModal(true)}
-              className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">تقرير (PDF)</span>
-            </button>
-
-            {/* Logout Button */}
-            <button
-              onClick={() => {
-                authStorage.setCurrentUser(null);
-                setCurrentUser(null);
-              }}
-              className="px-2 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-800 rounded-xl text-xs font-bold flex items-center gap-1 transition"
-              title="تسجيل الخروج"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">خروج</span>
+              {mobileMenuOpen ? <X className="w-4 h-4 text-purple-400" /> : <Menu className="w-4 h-4 text-slate-200" />}
             </button>
           </div>
         </div>
 
+        {/* Mobile Navigation Dropdown Drawer (when open on screens < lg) */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden bg-slate-950/98 border-t border-slate-800 p-4 space-y-3 animate-fadeIn">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {/* University Selector for Mobile */}
+              <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between">
+                <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                  <GraduationCap className="w-4 h-4 text-purple-400" />
+                  الجامعة:
+                </span>
+                <select
+                  value={selectedUniv.id}
+                  onChange={(e) => {
+                    const u = YEMENI_UNIVERSITIES.find(x => x.id === e.target.value);
+                    if (u) setSelectedUniv(u);
+                  }}
+                  className="bg-slate-950 text-white font-semibold rounded-lg px-2 py-1 text-xs border border-slate-800 focus:outline-none"
+                >
+                  {YEMENI_UNIVERSITIES.map(u => (
+                    <option key={u.id} value={u.id} className="bg-slate-900 text-white">
+                      {u.nameAr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* AI Advisor Button */}
+              <button
+                onClick={() => {
+                  setShowAIAdvisor(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="py-2.5 px-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 transition shadow"
+              >
+                <Bot className="w-4 h-4" />
+                <span>المشرف المعملي AI</span>
+              </button>
+
+              {/* Lab Report Button */}
+              <button
+                onClick={() => {
+                  setShowReportModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="py-2.5 px-3 bg-blue-600/30 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 rounded-xl font-bold flex items-center justify-center gap-1.5 transition"
+              >
+                <FileText className="w-4 h-4" />
+                <span>تقرير المعمل PDF</span>
+              </button>
+
+              {/* Owner Admin Button */}
+              <button
+                onClick={() => {
+                  setShowOwnerModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="py-2.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl font-bold flex items-center justify-center gap-1.5 transition"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>لوحة تحكم المالك</span>
+              </button>
+
+              {/* Logout Button */}
+              <button
+                onClick={() => {
+                  authStorage.setCurrentUser(null);
+                  setCurrentUser(null);
+                  setMobileMenuOpen(false);
+                }}
+                className="py-2.5 px-3 bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-800/40 rounded-xl font-bold flex items-center justify-center gap-1.5 transition"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>تسجيل الخروج</span>
+              </button>
+
+              {/* PWA Button */}
+              <div className="col-span-2 pt-1">
+                <PWAInstallButton variant="primary" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Academic Years & Lab Modes Navigation Bar */}
-        <div className="border-t border-slate-800/80 bg-slate-950/60 px-4">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between py-2 gap-2 text-xs">
-            {/* Academic Years Filter */}
-            <div className="flex items-center gap-1 overflow-x-auto">
-              <span className="text-slate-400 font-semibold ml-2 whitespace-nowrap">السنوات الأكاديمية:</span>
+        <div className="border-t border-slate-800/80 bg-slate-950/60 px-2 sm:px-4">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between py-1.5 gap-2 text-xs">
+            {/* Academic Years Filter - Scrollable chips */}
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+              <span className="text-slate-400 font-semibold ml-1 shrink-0 text-[11px]">السنوات:</span>
               <button
                 onClick={() => setSelectedYear('all')}
-                className={`px-3 py-1 rounded-lg transition font-medium ${
+                className={`px-2.5 py-1 rounded-lg transition font-medium shrink-0 text-xs ${
                   selectedYear === 'all'
                     ? 'bg-purple-600 text-white font-bold'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                الكل (جميع السنوات)
+                الكل
               </button>
               {([1, 2, 3, 4, 5] as const).map(yr => (
                 <button
                   key={yr}
                   onClick={() => setSelectedYear(yr)}
-                  className={`px-2.5 py-1 rounded-lg transition font-medium whitespace-nowrap ${
+                  className={`px-2 py-1 rounded-lg transition font-medium whitespace-nowrap shrink-0 text-xs ${
                     selectedYear === yr
                       ? 'bg-purple-600 text-white font-bold'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >
-                  {yr === 1 && 'السنة 1 (تأسيس)'}
-                  {yr === 2 && 'السنة 2 (إلكترونيات)'}
-                  {yr === 3 && 'السنة 3 (مشغلات)'}
-                  {yr === 4 && 'السنة 4 (تحكم ونيوماتيك)'}
-                  {yr === 5 && 'السنة 5 (روبوتات وتخرج)'}
+                  {yr === 1 && 'س1 تأسيس'}
+                  {yr === 2 && 'س2 إلكترونيات'}
+                  {yr === 3 && 'س3 مشغلات'}
+                  {yr === 4 && 'س4 تحكم'}
+                  {yr === 5 && 'س5 روبوتات'}
                 </button>
               ))}
             </div>
 
             {/* Quick Floating Instruments Toggle Drawer */}
-            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-[11px]">
-              <span className="text-slate-400 px-1 font-sans">الأجهزة المعملية:</span>
+            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px] overflow-x-auto no-scrollbar shrink-0">
+              <span className="text-slate-400 px-1 font-sans shrink-0 hidden sm:inline">أجهزة:</span>
               <button
                 onClick={() => setShowOscilloscope(!showOscilloscope)}
-                className={`px-2 py-1 rounded-lg transition font-medium ${
-                  showOscilloscope ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
+                  showOscilloscope ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                راسم الإشارة (Scope)
+                الراسم (Scope)
               </button>
               <button
                 onClick={() => setShowMultimeter(!showMultimeter)}
-                className={`px-2 py-1 rounded-lg transition font-medium ${
+                className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
                   showMultimeter ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 الملتيميتر (DMM)
               </button>
               <button
-                onClick={() => setActiveTab('circuit_wizard')}
-                className={`px-2.5 py-1 rounded-lg transition font-bold flex items-center gap-1 text-xs ${
-                  activeTab === 'circuit_wizard'
-                    ? 'bg-purple-600 text-white shadow-md'
-                    : 'bg-purple-950/60 text-purple-300 hover:text-white border border-purple-500/40'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>مختبر Circuit Wizard</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('voltmeter')}
-                className={`px-2 py-1 rounded-lg transition font-medium flex items-center gap-1 ${
-                  activeTab === 'voltmeter' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-amber-400 hover:text-amber-200'
-                }`}
-              >
-                <Gauge className="w-3.5 h-3.5" />
-                <span>محاكي فولتميتر</span>
-              </button>
-              <button
                 onClick={() => setShowPowerSupply(!showPowerSupply)}
-                className={`px-2 py-1 rounded-lg transition font-medium ${
-                  showPowerSupply ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
+                  showPowerSupply ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                مجهز القدرة (DC Power)
+                مجهز القدرة (DC)
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Lab Mode Tabs Navigation */}
-      <div className="bg-slate-900/60 border-b border-slate-800 px-4">
-        <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto py-2 text-xs">
+      {/* Lab Mode Tabs Navigation - Responsive Touch Scrollable Bar */}
+      <div className="bg-slate-900/70 border-b border-slate-800 px-2 sm:px-4 sticky top-[82px] sm:top-[90px] z-30 backdrop-blur">
+        <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2 text-xs">
           <button
             onClick={() => setActiveTab('circuit_wizard')}
             className={`px-3 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap font-bold ${
@@ -503,7 +584,7 @@ export default function App() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-1.5 sm:p-4 space-y-4 sm:space-y-6">
         {/* Floating/Docked Instruments Drawer if enabled */}
         {(showOscilloscope || showMultimeter || showPowerSupply) && (
           <div className="bg-slate-900/90 border-2 border-purple-500/40 rounded-3xl p-4 shadow-2xl flex flex-col gap-4">
