@@ -26,6 +26,7 @@ import { ScienceCalculators } from './components/ScienceCalculators';
 import { AILabAdvisorModal } from './components/AILabAdvisorModal';
 import { LabReportModal } from './components/LabReportModal';
 import { VoltmeterSimulator } from './components/VoltmeterSimulator';
+import { CircuitWizardLab } from './components/CircuitWizardLab';
 
 import { LoginPage } from './components/LoginPage';
 import { OwnerAdminModal } from './components/OwnerAdminModal';
@@ -65,8 +66,8 @@ export default function App() {
 
   // Active Main Navigation Tab
   const [activeTab, setActiveTab] = useState<
-    'curriculum' | 'workbench' | 'voltmeter' | 'pid' | 'robotics' | 'plc' | 'pneumatics' | 'arduino' | 'calculators'
-  >('curriculum');
+    'curriculum' | 'circuit_wizard' | 'workbench' | 'voltmeter' | 'pid' | 'robotics' | 'plc' | 'pneumatics' | 'arduino' | 'calculators'
+  >('circuit_wizard');
 
   // Currently Selected Experiment
   const [currentExp, setCurrentExp] = useState<Experiment>(EXPERIMENTS_CATALOG[0]);
@@ -145,7 +146,7 @@ export default function App() {
     else if (exp.mode === 'plc') setActiveTab('plc');
     else if (exp.mode === 'pneumatics') setActiveTab('pneumatics');
     else if (exp.mode === 'arduino') setActiveTab('arduino');
-    else setActiveTab('workbench');
+    else setActiveTab('circuit_wizard');
   };
 
   const handleCompleteExperiment = () => {
@@ -343,6 +344,17 @@ export default function App() {
                 الملتيميتر (DMM)
               </button>
               <button
+                onClick={() => setActiveTab('circuit_wizard')}
+                className={`px-2.5 py-1 rounded-lg transition font-bold flex items-center gap-1 text-xs ${
+                  activeTab === 'circuit_wizard'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'bg-purple-950/60 text-purple-300 hover:text-white border border-purple-500/40'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>مختبر Circuit Wizard</span>
+              </button>
+              <button
                 onClick={() => setActiveTab('voltmeter')}
                 className={`px-2 py-1 rounded-lg transition font-medium flex items-center gap-1 ${
                   activeTab === 'voltmeter' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-amber-400 hover:text-amber-200'
@@ -367,6 +379,19 @@ export default function App() {
       {/* Lab Mode Tabs Navigation */}
       <div className="bg-slate-900/60 border-b border-slate-800 px-4">
         <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto py-2 text-xs">
+          <button
+            onClick={() => setActiveTab('circuit_wizard')}
+            className={`px-3 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap font-bold ${
+              activeTab === 'circuit_wizard'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md ring-1 ring-purple-400'
+                : 'text-purple-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>مختبر سيركت ويزارد (Circuit Wizard Lab)</span>
+            <span className="bg-amber-400 text-slate-950 text-[9px] px-1.5 py-0.5 rounded-full font-black">شامل</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('curriculum')}
             className={`px-3 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap font-bold ${
@@ -684,6 +709,9 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* Tab: Full Circuit Wizard Laboratory */}
+        {activeTab === 'circuit_wizard' && <CircuitWizardLab />}
 
         {/* Tab: Dedicated Voltmeter & Multimeter Laboratory */}
         {activeTab === 'voltmeter' && <VoltmeterSimulator />}
