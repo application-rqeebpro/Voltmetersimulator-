@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getPool, initDatabase } from './db';
+import { getPool, initDatabase } from '../lib/db';
 
 const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
 

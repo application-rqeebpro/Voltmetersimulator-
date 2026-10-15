@@ -8,7 +8,7 @@ import dbStatusHandler from './api/db-status';
 import requestsHandler from './api/requests';
 import authHandler from './api/auth';
 import ownerHandler from './api/owner';
-import { initDatabase, getDatabaseUrl } from './api/db';
+import { initDatabase, getDatabaseUrl } from './lib/db';
 
 dotenv.config();
 

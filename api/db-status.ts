@@ -1,5 +1,4 @@
-import type { Request, Response } from 'express';
-import { testDatabaseConnection, getDatabaseUrl, initDatabase, getPool } from './db';
+import { testDatabaseConnection, getDatabaseUrl, initDatabase, getPool, testReadWriteDatabase } from '../lib/db';
 
 export default async function handler(req: any, res: any) {
   // Set CORS headers
@@ -21,7 +20,6 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json(initResult);
       }
       if (action === 'test-rw') {
-        const { testReadWriteDatabase } = await import('./db');
         const rwResult = await testReadWriteDatabase();
         return res.status(200).json(rwResult);
       }
