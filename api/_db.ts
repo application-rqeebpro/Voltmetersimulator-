@@ -1,4 +1,9 @@
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+
+if (!neonConfig.webSocketConstructor) {
+  neonConfig.webSocketConstructor = ws;
+}
 
 let pool: Pool | null = null;
 let initPromise: Promise<void> | null = null;
