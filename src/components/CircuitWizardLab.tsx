@@ -1,61 +1,103 @@
-// CircuitWizardLab.tsx - مختبر الدوائر الإلكترونية والميكاترونكس الافتراضي المتكامل بنمط Circuit Wizard
-// مصمم ومخصص لطلاب هندسة الميكاترونكس في الجامعات اليمنية مع دعم شاشات الهواتف وRTL
+// CircuitWizardLab.tsx - محاكي Circuit Wizard المتكامل عالي الدقة والواقعية
+// يدعم: إنشاء مشاريع جديدة، إضافة لوحة المكونات والتجارب (Breadboard)،
+// السحب والإفلات والتعديل والتحكم الكامل في المكونات، محاكاة فيزيائية حقيقية،
+// وتصميم ثابت ومتناسق يقلل الازدحام على الجوال والتابلت وسطح المكتب.
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Play,
   Pause,
   RotateCcw,
+  Sparkles,
+  Zap,
+  Activity,
+  Layers,
+  Folder,
+  FolderOpen,
+  FileText,
+  HelpCircle,
+  Volume2,
+  VolumeX,
   Plus,
   Trash2,
   RotateCw,
-  Copy,
-  Layers,
-  Sliders,
-  Eye,
-  Zap,
-  Info,
-  Maximize2,
-  Minimize2,
+  Check,
   ChevronRight,
-  ChevronLeft,
   ChevronDown,
-  Search,
-  Sparkles,
-  AlertTriangle,
-  Flame,
-  CheckCircle2,
-  Activity,
-  FileDown,
-  BookOpen,
-  ArrowRight,
-  Volume2,
-  VolumeX,
-  Crosshair,
-  Gauge,
-  HelpCircle,
-  FolderOpen,
+  Info,
   Download,
-  Upload,
-  Share2,
-  Smartphone,
   Cpu,
-  Radio,
-  FileText,
+  Crosshair,
+  Printer,
+  Copy,
+  Save,
+  FilePlus,
+  AlertTriangle,
+  Lightbulb,
   X,
-  SlidersHorizontal
+  Maximize,
+  Grid,
+  Link,
+  SlidersHorizontal,
+  Flame,
+  Settings,
+  MousePointer,
+  Gauge,
+  Move
 } from 'lucide-react';
 
-// --- Sound Synthesizer via Web Audio API ---
-class LabAudioEngine {
+// ==========================================
+// 1. Audio Engine for Realistic Hardware Sounds
+// ==========================================
+class CircuitWizardAudio {
   private ctx: AudioContext | null = null;
 
   private init() {
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+  }
+
+  playSwitchClick() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.035);
+      gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.035);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.035);
+    } catch {
+      // Audio policy safe
+    }
+  }
+
+  playWireConnect() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.05);
+    } catch {
+      // Audio policy safe
     }
   }
 
@@ -63,44 +105,19 @@ class LabAudioEngine {
     try {
       this.init();
       if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
-      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'square';
       osc.frequency.setValueAtTime(2400, this.ctx.currentTime);
       gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start();
-      osc.stop(this.ctx.currentTime + 0.15);
+      osc.stop(this.ctx.currentTime + 0.12);
     } catch {
-      // Audio autoplay policy fallback
-    }
-  }
-
-  playRelayClick() {
-    try {
-      this.init();
-      if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
-      }
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.04);
-    } catch {
-      // Ignore
+      // Audio policy safe
     }
   }
 
@@ -108,103 +125,37 @@ class LabAudioEngine {
     try {
       this.init();
       if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
-      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(440, this.ctx.currentTime + 0.25);
+      osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(300, this.ctx.currentTime + 0.15);
       gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+      gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start();
-      osc.stop(this.ctx.currentTime + 0.25);
+      osc.stop(this.ctx.currentTime + 0.15);
     } catch {
-      // Ignore
+      // Audio policy safe
     }
   }
 }
 
-const audioEngine = new LabAudioEngine();
+const cwAudio = new CircuitWizardAudio();
 
-// --- Definition of Component Categories & Kinds ---
-export type ComponentCategory =
-  | 'power'
-  | 'connectors'
-  | 'input'
-  | 'passive'
-  | 'discrete'
-  | 'logic'
-  | 'ic'
-  | 'output'
-  | 'instruments';
+// ==========================================
+// 2. Types & Data Models
+// ==========================================
+export type CircuitWizardMode = 
+  | 'normal' 
+  | 'realworld' 
+  | 'current_flow' 
+  | 'voltage_levels' 
+  | 'standard';
 
-export type ComponentKind =
-  // Power
-  | 'battery'
-  | 'battery_aa'
-  | 'battery_18650'
-  | 'battery_lead_acid'
-  | 'solar_cell'
-  | 'dc_source'
-  | 'ac_source'
-  | 'current_source'
-  | 'ground'
-  | 'vcc'
-  // Connectors
-  | 'junction'
-  | 'terminal_block'
-  // Input
-  | 'switch_spst'
-  | 'switch_spdt'
-  | 'push_button'
-  | 'push_button_nc'
-  | 'potentiometer'
-  | 'trimmer'
-  | 'ldr'
-  | 'thermistor'
-  // Passive
-  | 'resistor'
-  | 'capacitor'
-  | 'capacitor_electrolytic'
-  | 'capacitor_polyester'
-  | 'inductor'
-  | 'transformer'
-  // Discrete Semiconductors
-  | 'diode'
-  | 'zener'
-  | 'led'
-  | 'photodiode'
-  | 'transistor_npn'
-  | 'transistor_pnp'
-  | 'mosfet_n'
-  // Logic Gates
-  | 'gate_and'
-  | 'gate_or'
-  | 'gate_not'
-  | 'gate_nand'
-  | 'gate_nor'
-  | 'gate_xor'
-  | 'gate_xnor'
-  // Integrated Circuits
-  | 'ic_555'
-  | 'opamp'
-  // Output
-  | 'lamp'
-  | 'buzzer'
-  | 'relay'
-  | 'dc_motor'
-  | 'seven_segment'
-  // Instruments
-  | 'voltmeter'
-  | 'ammeter'
-  | 'oscilloscope'
-  | 'logic_probe';
-
-export interface PinDefinition {
+export interface CWPinDef {
   id: string;
   name: string;
   nameAr: string;
@@ -212,10 +163,28 @@ export interface PinDefinition {
   relY: number;
 }
 
-export interface CircuitElement {
+export type ComponentKind =
+  | 'breadboard'
+  | 'battery_aa' 
+  | 'battery_9v' 
+  | 'battery_4aa'
+  | 'switch_spst' 
+  | 'push_button' 
+  | 'potentiometer'
+  | 'bulb' 
+  | 'led' 
+  | 'buzzer' 
+  | 'motor' 
+  | 'resistor' 
+  | 'capacitor' 
+  | 'diode' 
+  | 'voltmeter' 
+  | 'ammeter';
+
+export interface CWElement {
   id: string;
+  ref: string; // e.g. "B1", "SW1", "BL1", "R1", "BB1"
   kind: ComponentKind;
-  category: ComponentCategory;
   name: string;
   nameAr: string;
   x: number;
@@ -223,2353 +192,2695 @@ export interface CircuitElement {
   rotation: number; // 0, 90, 180, 270
   value: number;
   unit: string;
-  label: string;
-  color?: string; // For LEDs
-  state?: boolean; // For switches
-  setting?: number; // 0-100 for potentiometers, LDR lux, thermistor temp
-  // Real Dynamic Simulation state
+  state?: boolean; // switch open/closed
+  setting?: number; // 0-100 for potentiometer
+  color?: string; // for LED
+  // Solved parameters
   voltageDrop?: number;
   currentThrough?: number;
   powerDissipated?: number;
   isOverloaded?: boolean;
-  reversePolarityBlown?: boolean;
-  pinVoltages?: Record<string, number>;
-  activeOutput?: boolean;
-  motorSpeed?: number;
-  buzzerActive?: boolean;
 }
 
-export interface CircuitWire {
+export interface CWWire {
   id: string;
   fromCompId: string;
   fromPinId: string;
   toCompId: string;
   toPinId: string;
-  color?: string;
-  voltage?: number;
-  current?: number;
+  color: string;
 }
 
-// Predefined Pin definitions for each component kind
-const COMPONENT_PINS: Record<ComponentKind, PinDefinition[]> = {
-  battery: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -35, relY: 0 }
-  ],
+export interface CWSampleCircuit {
+  id: string;
+  fileName: string;
+  category: 'Elementary Circuits' | 'Basic Circuits' | 'Advanced Circuits';
+  subGroup: 'General' | 'Electrical Theory' | 'Measuring' | 'Mechanisms';
+  title: string;
+  titleAr: string;
+  desc: string;
+  sheetTitle: string;
+  instructions: {
+    title: string;
+    line1: string;
+    line2: string;
+  };
+  elements: CWElement[];
+  wires: CWWire[];
+  schematicBox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+// Relative pin definitions for components
+export const COMPONENT_PINS: Record<ComponentKind, CWPinDef[]> = {
   battery_aa: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 30, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -30, relY: 0 }
+    { id: 'pos', name: '+', nameAr: 'موجب', relX: 0, relY: -95 },
+    { id: 'neg', name: '-', nameAr: 'سالب', relX: 0, relY: 55 }
   ],
-  battery_18650: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -35, relY: 0 }
+  battery_9v: [
+    { id: 'pos', name: '+', nameAr: 'موجب', relX: -10, relY: -60 },
+    { id: 'neg', name: '-', nameAr: 'سالب', relX: 10, relY: -60 }
   ],
-  battery_lead_acid: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -35, relY: 0 }
-  ],
-  solar_cell: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -35, relY: 0 }
-  ],
-  dc_source: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -35, relY: 0 }
-  ],
-  ac_source: [
-    { id: 'p1', name: '~1', nameAr: 'طرف 1', relX: 35, relY: 0 },
-    { id: 'p2', name: '~2', nameAr: 'طرف 2', relX: -35, relY: 0 }
-  ],
-  current_source: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: 35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: -35, relY: 0 }
-  ],
-  ground: [
-    { id: 'gnd', name: 'GND', nameAr: 'أرضي', relX: 0, relY: -25 }
-  ],
-  vcc: [
-    { id: 'vcc', name: 'VCC', nameAr: 'تغذية', relX: 0, relY: 25 }
-  ],
-  junction: [
-    { id: 'node', name: 'N', nameAr: 'نقطة تفرع', relX: 0, relY: 0 }
-  ],
-  terminal_block: [
-    { id: 't1', name: '1', nameAr: 'مربط 1', relX: -25, relY: 0 },
-    { id: 't2', name: '2', nameAr: 'مربط 2', relX: 25, relY: 0 }
+  battery_4aa: [
+    { id: 'pos', name: '+', nameAr: 'موجب', relX: -10, relY: -60 },
+    { id: 'neg', name: '-', nameAr: 'سالب', relX: 10, relY: -60 }
   ],
   switch_spst: [
-    { id: 'p1', name: '1', nameAr: 'مدخل', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  switch_spdt: [
-    { id: 'com', name: 'COM', nameAr: 'مشترك', relX: -35, relY: 0 },
-    { id: 'no', name: 'NO', nameAr: 'مفتوح', relX: 35, relY: -15 },
-    { id: 'nc', name: 'NC', nameAr: 'مغلق', relX: 35, relY: 15 }
+    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -13, relY: 20 },
+    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 13, relY: 20 }
   ],
   push_button: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
-  ],
-  push_button_nc: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
+    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -13, relY: 20 },
+    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 13, relY: 20 }
   ],
   potentiometer: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: -15 },
-    { id: 'wiper', name: 'W', nameAr: 'المنزلقة', relX: 0, relY: 25 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: -15 }
+    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -18, relY: 18 },
+    { id: 'wiper', name: 'W', nameAr: 'المنزلقة', relX: 0, relY: 18 },
+    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 18, relY: 18 }
   ],
-  trimmer: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -30, relY: -15 },
-    { id: 'wiper', name: 'W', nameAr: 'المنزلقة', relX: 0, relY: 22 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 30, relY: -15 }
-  ],
-  ldr: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
-  ],
-  thermistor: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
+  bulb: [
+    { id: 'p1', name: '1', nameAr: 'قاعدة 1', relX: -24, relY: -8 },
+    { id: 'p2', name: '2', nameAr: 'قاعدة 2', relX: -24, relY: 8 }
   ],
   resistor: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
+    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -28, relY: 0 },
+    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 28, relY: 0 }
   ],
   capacitor: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
-  ],
-  capacitor_electrolytic: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: -35, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: 35, relY: 0 }
-  ],
-  capacitor_polyester: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
-  ],
-  inductor: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 35, relY: 0 }
-  ],
-  transformer: [
-    { id: 'pri1', name: 'P1', nameAr: 'ابتدائي 1', relX: -35, relY: -15 },
-    { id: 'pri2', name: 'P2', nameAr: 'ابتدائي 2', relX: -35, relY: 15 },
-    { id: 'sec1', name: 'S1', nameAr: 'ثانوي 1', relX: 35, relY: -15 },
-    { id: 'sec2', name: 'S2', nameAr: 'ثانوي 2', relX: 35, relY: 15 }
-  ],
-  diode: [
-    { id: 'anode', name: 'A', nameAr: 'أنود (+)', relX: -35, relY: 0 },
-    { id: 'cathode', name: 'K', nameAr: 'كاثود (-)', relX: 35, relY: 0 }
-  ],
-  zener: [
-    { id: 'anode', name: 'A', nameAr: 'أنود (+)', relX: -35, relY: 0 },
-    { id: 'cathode', name: 'K', nameAr: 'كاثود (-)', relX: 35, relY: 0 }
+    { id: 'p1', name: '1', nameAr: 'موجب', relX: -20, relY: 0 },
+    { id: 'p2', name: '2', nameAr: 'سالب', relX: 20, relY: 0 }
   ],
   led: [
-    { id: 'anode', name: 'A', nameAr: 'أنود (+)', relX: -35, relY: 0 },
-    { id: 'cathode', name: 'K', nameAr: 'كاثود (-)', relX: 35, relY: 0 }
+    { id: 'anode', name: 'A', nameAr: 'أنود (+)', relX: -16, relY: 0 },
+    { id: 'cathode', name: 'K', nameAr: 'كاثود (-)', relX: 16, relY: 0 }
   ],
-  photodiode: [
-    { id: 'anode', name: 'A', nameAr: 'أنود (+)', relX: -35, relY: 0 },
-    { id: 'cathode', name: 'K', nameAr: 'كاثود (-)', relX: 35, relY: 0 }
-  ],
-  transistor_npn: [
-    { id: 'base', name: 'B', nameAr: 'قاعدة', relX: -25, relY: 0 },
-    { id: 'collector', name: 'C', nameAr: 'مجمع', relX: 25, relY: -25 },
-    { id: 'emitter', name: 'E', nameAr: 'مشع', relX: 25, relY: 25 }
-  ],
-  transistor_pnp: [
-    { id: 'base', name: 'B', nameAr: 'قاعدة', relX: -25, relY: 0 },
-    { id: 'collector', name: 'C', nameAr: 'مجمع', relX: 25, relY: 25 },
-    { id: 'emitter', name: 'E', nameAr: 'مشع', relX: 25, relY: -25 }
-  ],
-  mosfet_n: [
-    { id: 'gate', name: 'G', nameAr: 'بوابة', relX: -25, relY: 0 },
-    { id: 'drain', name: 'D', nameAr: 'مصب', relX: 25, relY: -25 },
-    { id: 'source', name: 'S', nameAr: 'منبع', relX: 25, relY: 25 }
-  ],
-  gate_and: [
-    { id: 'in1', name: 'A', nameAr: 'مدخل 1', relX: -35, relY: -15 },
-    { id: 'in2', name: 'B', nameAr: 'مدخل 2', relX: -35, relY: 15 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  gate_or: [
-    { id: 'in1', name: 'A', nameAr: 'مدخل 1', relX: -35, relY: -15 },
-    { id: 'in2', name: 'B', nameAr: 'مدخل 2', relX: -35, relY: 15 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  gate_not: [
-    { id: 'in', name: 'A', nameAr: 'مدخل', relX: -35, relY: 0 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  gate_nand: [
-    { id: 'in1', name: 'A', nameAr: 'مدخل 1', relX: -35, relY: -15 },
-    { id: 'in2', name: 'B', nameAr: 'مدخل 2', relX: -35, relY: 15 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  gate_nor: [
-    { id: 'in1', name: 'A', nameAr: 'مدخل 1', relX: -35, relY: -15 },
-    { id: 'in2', name: 'B', nameAr: 'مدخل 2', relX: -35, relY: 15 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  gate_xor: [
-    { id: 'in1', name: 'A', nameAr: 'مدخل 1', relX: -35, relY: -15 },
-    { id: 'in2', name: 'B', nameAr: 'مدخل 2', relX: -35, relY: 15 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  gate_xnor: [
-    { id: 'in1', name: 'A', nameAr: 'مدخل 1', relX: -35, relY: -15 },
-    { id: 'in2', name: 'B', nameAr: 'مدخل 2', relX: -35, relY: 15 },
-    { id: 'out', name: 'Y', nameAr: 'مخرج', relX: 35, relY: 0 }
-  ],
-  ic_555: [
-    { id: 'gnd', name: '1:GND', nameAr: '1: أرضي', relX: -40, relY: -30 },
-    { id: 'trig', name: '2:TRIG', nameAr: '2: قدح', relX: -40, relY: -10 },
-    { id: 'out', name: '3:OUT', nameAr: '3: خرج', relX: -40, relY: 10 },
-    { id: 'rst', name: '4:RST', nameAr: '4: تصفير', relX: -40, relY: 30 },
-    { id: 'vcc', name: '8:VCC', nameAr: '8: تغذية', relX: 40, relY: -30 },
-    { id: 'dis', name: '7:DIS', nameAr: '7: تفريغ', relX: 40, relY: -10 },
-    { id: 'thr', name: '6:THR', nameAr: '6: عتبة', relX: 40, relY: 10 },
-    { id: 'cv', name: '5:CV', nameAr: '5: تحكم', relX: 40, relY: 30 }
-  ],
-  opamp: [
-    { id: 'inv', name: 'IN-', nameAr: 'عاكس (-)', relX: -35, relY: -15 },
-    { id: 'noninv', name: 'IN+', nameAr: 'غير عاكس (+)', relX: -35, relY: 15 },
-    { id: 'out', name: 'OUT', nameAr: 'خرج', relX: 35, relY: 0 }
-  ],
-  lamp: [
-    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -30, relY: 0 },
-    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 30, relY: 0 }
+  diode: [
+    { id: 'anode', name: 'A', nameAr: 'أنود', relX: -18, relY: 0 },
+    { id: 'cathode', name: 'K', nameAr: 'كاثود', relX: 18, relY: 0 }
   ],
   buzzer: [
-    { id: 'pos', name: '+', nameAr: 'موجب', relX: -25, relY: 0 },
-    { id: 'neg', name: '-', nameAr: 'سالب', relX: 25, relY: 0 }
+    { id: 'pos', name: '+', nameAr: 'موجب', relX: -14, relY: 16 },
+    { id: 'neg', name: '-', nameAr: 'سالب', relX: 14, relY: 16 }
   ],
-  relay: [
-    { id: 'coil1', name: 'C1', nameAr: 'ملف 1', relX: -35, relY: -15 },
-    { id: 'coil2', name: 'C2', nameAr: 'ملف 2', relX: -35, relY: 15 },
-    { id: 'com', name: 'COM', nameAr: 'مشترك', relX: 35, relY: 0 },
-    { id: 'no', name: 'NO', nameAr: 'مفتوح', relX: 35, relY: -20 },
-    { id: 'nc', name: 'NC', nameAr: 'مغلق', relX: 35, relY: 20 }
-  ],
-  dc_motor: [
-    { id: 'p1', name: '+', nameAr: 'طرف 1', relX: -35, relY: 0 },
-    { id: 'p2', name: '-', nameAr: 'طرف 2', relX: 35, relY: 0 }
-  ],
-  seven_segment: [
-    { id: 'com', name: 'COM', nameAr: 'مشترك', relX: 0, relY: 35 },
-    { id: 'in_a', name: 'A', nameAr: 'قطعة A', relX: -30, relY: -35 },
-    { id: 'in_b', name: 'B', nameAr: 'قطعة B', relX: 30, relY: -35 }
+  motor: [
+    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -15, relY: 18 },
+    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 15, relY: 18 }
   ],
   voltmeter: [
-    { id: 'pos', name: 'V+', nameAr: 'موجب (+)', relX: -30, relY: 0 },
-    { id: 'neg', name: 'COM', nameAr: 'مشترك (-)', relX: 30, relY: 0 }
+    { id: 'pos', name: '+', nameAr: 'موجب (+)', relX: -26, relY: 18 },
+    { id: 'neg', name: '-', nameAr: 'سالب (-)', relX: 26, relY: 18 }
   ],
   ammeter: [
-    { id: 'in', name: 'A+', nameAr: 'دخول (+)', relX: -30, relY: 0 },
-    { id: 'out', name: 'A-', nameAr: 'خروج (-)', relX: 30, relY: 0 }
+    { id: 'pos', name: '+', nameAr: 'مدخل (+)', relX: -26, relY: 18 },
+    { id: 'neg', name: '-', nameAr: 'مخرج (-)', relX: 26, relY: 18 }
   ],
-  oscilloscope: [
-    { id: 'ch1', name: 'CH1', nameAr: 'قناة 1', relX: -35, relY: -15 },
-    { id: 'gnd', name: 'GND', nameAr: 'أرضي', relX: -35, relY: 15 }
-  ],
-  logic_probe: [
-    { id: 'tip', name: 'TIP', nameAr: 'المسبار', relX: -30, relY: 0 }
+  breadboard: [
+    { id: 'pos_top', name: '+ Top', nameAr: 'موجب علوي', relX: -110, relY: -44 },
+    { id: 'neg_top', name: '- Top', nameAr: 'أرضي علوي', relX: 110, relY: -44 },
+    { id: 'tie_1', name: 'Row 1', nameAr: 'صف 1', relX: -60, relY: 0 },
+    { id: 'tie_2', name: 'Row 2', nameAr: 'صف 2', relX: 0, relY: 0 },
+    { id: 'tie_3', name: 'Row 3', nameAr: 'صف 3', relX: 60, relY: 0 },
+    { id: 'pos_bot', name: '+ Bot', nameAr: 'موجب سفلي', relX: -110, relY: 44 },
+    { id: 'neg_bot', name: '- Bot', nameAr: 'أرضي سفلي', relX: 110, relY: 44 }
   ]
 };
 
-// Resistor standard color code bands
-function getResistorColorBands(val: number): string[] {
-  if (val <= 0) return ['#000', '#000', '#000', '#d4af37'];
-  const colors = [
-    '#000000', // 0 Black
-    '#8b4513', // 1 Brown
-    '#ef4444', // 2 Red
-    '#f97316', // 3 Orange
-    '#eab308', // 4 Yellow
-    '#22c55e', // 5 Green
-    '#3b82f6', // 6 Blue
-    '#a855f7', // 7 Violet
-    '#6b7280', // 8 Gray
-    '#ffffff'  // 9 White
-  ];
-  const logVal = Math.floor(Math.log10(val));
-  const mult = logVal >= 1 ? logVal - 1 : 0;
-  const sig = Math.round(val / Math.pow(10, mult));
-  const d1 = Math.floor(sig / 10) % 10;
-  const d2 = sig % 10;
-  return [colors[d1] || '#8b4513', colors[d2] || '#000000', colors[mult] || '#ef4444', '#d4af37'];
+// Calculate rotated absolute pin position on canvas
+export function getPinAbsolutePos(el: CWElement, pinId: string): { x: number; y: number } {
+  const pins = COMPONENT_PINS[el.kind] || [];
+  const pin = pins.find((p) => p.id === pinId) || { relX: 0, relY: 0 };
+  const rad = ((el.rotation || 0) * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const rx = pin.relX * cos - pin.relY * sin;
+  const ry = pin.relX * sin + pin.relY * cos;
+  return { x: el.x + rx, y: el.y + ry };
 }
 
-// Preset Curriculum Experiments for Yemeni Universities
-const PRESET_CIRCUITS = [
+// Generate smooth bezier curve between any two points
+export function getWirePath(p1: { x: number; y: number }, p2: { x: number; y: number }): string {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const dist = Math.hypot(dx, dy);
+  const curvature = Math.min(55, Math.max(25, dist * 0.25));
+  const cx1 = p1.x + (dx > 0 ? curvature * 0.4 : -curvature * 0.4);
+  const cy1 = p1.y + curvature;
+  const cx2 = p2.x - (dx > 0 ? curvature * 0.4 : -curvature * 0.4);
+  const cy2 = p2.y + curvature;
+  return `M ${p1.x} ${p1.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p2.x} ${p2.y}`;
+}
+
+// ==========================================
+// 3. Predefined Sample Circuits Catalog
+// ==========================================
+export const CW_SAMPLE_CIRCUITS: CWSampleCircuit[] = [
+  // 1. Bulb Circuit
   {
-    id: 'ohm_divider',
-    title: 'قانون أوم وتجربة مجزئ الجهد (Voltage Divider)',
-    desc: 'تطبيق عملي مباشر لقانون أوم وتجزئة الجهد عبر مقاومتين 1kΩ و 2kΩ مع قراءات الفولتميتر الحية وتأكيد الحسابات النظرية.',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '9V Battery', nameAr: 'بطارية 9V', x: 120, y: 220, rotation: 0, value: 9, unit: 'V', label: '9V' },
-      { id: 'r1', kind: 'resistor', category: 'passive', name: 'Resistor R1', nameAr: 'مقاومة R1 (1kΩ)', x: 280, y: 150, rotation: 90, value: 1000, unit: 'Ω', label: '1kΩ' },
-      { id: 'r2', kind: 'resistor', category: 'passive', name: 'Resistor R2', nameAr: 'مقاومة R2 (2kΩ)', x: 280, y: 290, rotation: 90, value: 2000, unit: 'Ω', label: '2kΩ' },
-      { id: 'vm1', kind: 'voltmeter', category: 'instruments', name: 'Voltmeter', nameAr: 'فولتميتر R2', x: 440, y: 290, rotation: 0, value: 0, unit: 'V', label: 'V_out' },
-      { id: 'gnd1', kind: 'ground', category: 'power', name: 'Ground', nameAr: 'أرضي', x: 280, y: 390, rotation: 0, value: 0, unit: 'V', label: 'GND' }
+    id: 'bulb_circuit',
+    fileName: 'Bulb Circuit.cwz',
+    category: 'Elementary Circuits',
+    subGroup: 'General',
+    title: 'Bulb Circuit',
+    titleAr: 'دائرة المصباح والمفتاح الكهربائي (Bulb Circuit)',
+    desc: 'Shows how a light switch works. Basic single-loop circuit with an AA battery, SPST toggle switch, and incandescent filament bulb.',
+    sheetTitle: 'Elementary Circuit',
+    instructions: {
+      title: 'Bulb Circuit—Shows how a light switch works.',
+      line1: 'Click on the Run button to simulate the circuit.',
+      line2: 'Once simulating, click switch SW1 to turn the light on or off.'
+    },
+    elements: [
+      { id: 'bat1', ref: 'B1', kind: 'battery_aa', name: 'Battery', nameAr: 'بطارية 1.5V', x: 130, y: 310, rotation: 0, value: 1.5, unit: 'V' },
+      { id: 'sw1', ref: 'SW1', kind: 'switch_spst', name: 'Switch SW1', nameAr: 'مفتاح SW1', x: 220, y: 175, rotation: 0, value: 0, unit: '', state: true },
+      { id: 'bulb1', ref: 'BL1', kind: 'bulb', name: 'Bulb', nameAr: 'مصباح توهج', x: 280, y: 285, rotation: 0, value: 1.5, unit: 'V' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'r1', toPinId: 'p1' },
-      { id: 'w2', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'r2', toPinId: 'p1' },
-      { id: 'w3', fromCompId: 'r2', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w4', fromCompId: 'r2', fromPinId: 'p2', toCompId: 'gnd1', toPinId: 'gnd' },
-      { id: 'w5', fromCompId: 'r2', fromPinId: 'p1', toCompId: 'vm1', toPinId: 'pos' },
-      { id: 'w6', fromCompId: 'r2', fromPinId: 'p2', toCompId: 'vm1', toPinId: 'neg' }
-    ]
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'bulb1', toPinId: 'p1', color: '#2563eb' },
+      { id: 'w3', fromCompId: 'bulb1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg', color: '#111827' }
+    ],
+    schematicBox: { x: 285, y: 345, width: 180, height: 135 }
   },
+
+  // 2. Dimmer Switch
   {
-    id: 'led_switch',
-    title: 'تشغيل LED بمفتاح ضغط ومقاومة حماية من الاحتراق',
-    desc: 'دائرة إضاءة الدايود الضوئي مع محاكاة احتراق الدايود إذا رُبط بالبطارية بدون مقاومة تحد من التيار.',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '9V Battery', nameAr: 'بطارية 9V', x: 120, y: 220, rotation: 0, value: 9, unit: 'V', label: '9V' },
-      { id: 'sw1', kind: 'push_button', category: 'input', name: 'Push Button', nameAr: 'زر ضغط', x: 260, y: 150, rotation: 0, value: 0, unit: '', label: 'SW1', state: true },
-      { id: 'r1', kind: 'resistor', category: 'passive', name: 'Resistor', nameAr: 'مقاومة 470Ω', x: 400, y: 150, rotation: 0, value: 470, unit: 'Ω', label: '470Ω' },
-      { id: 'led1', kind: 'led', category: 'discrete', name: 'Red LED', nameAr: 'LED أحمر', x: 520, y: 220, rotation: 90, value: 2.1, unit: 'V', label: 'LED', color: '#ef4444' },
-      { id: 'gnd1', kind: 'ground', category: 'power', name: 'Ground', nameAr: 'أرضي', x: 300, y: 340, rotation: 0, value: 0, unit: 'V', label: 'GND' }
+    id: 'dimmer_switch',
+    fileName: 'Dimmer Switch.cwz',
+    category: 'Elementary Circuits',
+    subGroup: 'General',
+    title: 'Dimmer Switch',
+    titleAr: 'مفتاح خافض الإضاءة بالجهد المتغير (Dimmer Switch)',
+    desc: 'Shows how a variable resistor controls current flow and smoothly changes the brightness of a filament lamp.',
+    sheetTitle: 'Elementary Circuit',
+    instructions: {
+      title: 'Dimmer Switch—Smooth brightness control.',
+      line1: 'Click Run, then toggle switch SW1 to activate the circuit.',
+      line2: 'Adjust the potentiometer setting to dim the lamp brightness.'
+    },
+    elements: [
+      { id: 'bat1', ref: 'B1', kind: 'battery_9v', name: '9V Battery', nameAr: 'بطارية 9V', x: 130, y: 310, rotation: 0, value: 9, unit: 'V' },
+      { id: 'pot1', ref: 'VR1', kind: 'potentiometer', name: 'Potentiometer', nameAr: 'مقاومة متغيرة', x: 220, y: 175, rotation: 0, value: 1000, unit: 'Ω', setting: 75 },
+      { id: 'bulb1', ref: 'BL1', kind: 'bulb', name: 'Lamp', nameAr: 'مصباح', x: 280, y: 285, rotation: 0, value: 9, unit: 'V' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1' },
-      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'r1', toPinId: 'p1' },
-      { id: 'w3', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'led1', toPinId: 'anode' },
-      { id: 'w4', fromCompId: 'led1', fromPinId: 'cathode', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w5', fromCompId: 'bat1', fromPinId: 'neg', toCompId: 'gnd1', toPinId: 'gnd' }
-    ]
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'pot1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'pot1', fromPinId: 'wiper', toCompId: 'bulb1', toPinId: 'p1', color: '#2563eb' },
+      { id: 'w3', fromCompId: 'bulb1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg', color: '#111827' }
+    ],
+    schematicBox: { x: 285, y: 345, width: 180, height: 135 }
   },
+
+  // 3. LED Circuit
   {
-    id: 'motor_npn',
-    title: 'مشغل محرك DC بترانزستور NPN ودايود حماية Flyback',
-    desc: 'دائرة قيادة محركات الروبوت عبر إشارة تحكم ضعيفة مع ترانزستور BC547 ودايود 1N4007 لمنع التيارات العكسية الحثية.',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '12V Battery', nameAr: 'بطارية 12V', x: 100, y: 240, rotation: 0, value: 12, unit: 'V', label: '12V' },
-      { id: 'mot1', kind: 'dc_motor', category: 'output', name: 'DC Motor', nameAr: 'محرك DC', x: 320, y: 140, rotation: 0, value: 12, unit: 'V', label: 'Motor' },
-      { id: 'dio1', kind: 'diode', category: 'discrete', name: 'Flyback Diode', nameAr: 'دايود حماية 1N4007', x: 320, y: 230, rotation: 180, value: 0.7, unit: 'V', label: '1N4007' },
-      { id: 'q1', kind: 'transistor_npn', category: 'discrete', name: 'NPN Transistor', nameAr: 'ترانزستور BC547', x: 440, y: 260, rotation: 0, value: 100, unit: 'hfe', label: 'BC547' },
-      { id: 'rb', kind: 'resistor', category: 'passive', name: 'Base Resistor', nameAr: 'مقاومة قاعدة 1kΩ', x: 340, y: 340, rotation: 0, value: 1000, unit: 'Ω', label: '1kΩ' },
-      { id: 'sw1', kind: 'switch_spst', category: 'input', name: 'Signal Switch', nameAr: 'مفتاح إشارة', x: 220, y: 340, rotation: 0, value: 0, unit: '', label: 'Start', state: true }
+    id: 'led_circuit',
+    fileName: 'LED Circuit.cwz',
+    category: 'Elementary Circuits',
+    subGroup: 'General',
+    title: 'LED Circuit',
+    titleAr: 'دائرة الدايود المشع للضوء LED مع مقاومة حماية',
+    desc: 'Shows how an LED needs a current-limiting resistor to protect it from burning out when connected to 9V.',
+    sheetTitle: 'Elementary Circuit',
+    instructions: {
+      title: 'LED Circuit—Current limiting protection.',
+      line1: 'Click Run to simulate. The 470Ω resistor limits excess current.',
+      line2: 'Click SW1 to switch the red LED safely on or off.'
+    },
+    elements: [
+      { id: 'bat1', ref: 'B1', kind: 'battery_9v', name: '9V Battery', nameAr: 'بطارية 9V', x: 130, y: 310, rotation: 0, value: 9, unit: 'V' },
+      { id: 'sw1', ref: 'SW1', kind: 'switch_spst', name: 'Switch SW1', nameAr: 'مفتاح SW1', x: 215, y: 175, rotation: 0, value: 0, unit: '', state: true },
+      { id: 'r1', ref: 'R1', kind: 'resistor', name: '470Ω Resistor', nameAr: 'مقاومة 470Ω', x: 280, y: 175, rotation: 0, value: 470, unit: 'Ω' },
+      { id: 'led1', ref: 'LED1', kind: 'led', name: 'Red LED', nameAr: 'LED أحمر', x: 280, y: 285, rotation: 0, value: 2.1, unit: 'V', color: '#ef4444' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'mot1', toPinId: 'p1' },
-      { id: 'w2', fromCompId: 'mot1', fromPinId: 'p1', toCompId: 'dio1', toPinId: 'cathode' },
-      { id: 'w3', fromCompId: 'mot1', fromPinId: 'p2', toCompId: 'dio1', toPinId: 'anode' },
-      { id: 'w4', fromCompId: 'mot1', fromPinId: 'p2', toCompId: 'q1', toPinId: 'collector' },
-      { id: 'w5', fromCompId: 'q1', fromPinId: 'emitter', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w6', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1' },
-      { id: 'w7', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'rb', toPinId: 'p1' },
-      { id: 'w8', fromCompId: 'rb', fromPinId: 'p2', toCompId: 'q1', toPinId: 'base' }
-    ]
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'r1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w3', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'led1', toPinId: 'anode', color: '#2563eb' },
+      { id: 'w4', fromCompId: 'led1', fromPinId: 'cathode', toCompId: 'bat1', toPinId: 'neg', color: '#111827' }
+    ],
+    schematicBox: { x: 285, y: 345, width: 180, height: 135 }
   },
+
+  // 4. Ohm's Law
   {
-    id: 'opamp_ldr',
-    title: 'مقارن ضوئي LDR مع مكبر العمليات Op-Amp LM741',
-    desc: 'دائرة إنارة أوتوماتيكية تقارن جهد حساس الضوء LDR مع جهد مرجعي لتشغيل المصباح ليلاً عند حلول الظلام.',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '9V Battery', nameAr: 'بطارية 9V', x: 100, y: 220, rotation: 0, value: 9, unit: 'V', label: '9V' },
-      { id: 'ldr1', kind: 'ldr', category: 'input', name: 'LDR Sensor', nameAr: 'حساس ضوء LDR', x: 240, y: 150, rotation: 90, value: 5000, unit: 'Ω', label: 'LDR', setting: 20 },
-      { id: 'r1', kind: 'resistor', category: 'passive', name: 'Resistor R1', nameAr: 'مقاومة 10kΩ', x: 240, y: 280, rotation: 90, value: 10000, unit: 'Ω', label: '10kΩ' },
-      { id: 'op1', kind: 'opamp', category: 'ic', name: 'Op-Amp LM741', nameAr: 'مكبر LM741', x: 400, y: 220, rotation: 0, value: 100000, unit: 'gain', label: 'LM741' },
-      { id: 'lamp1', kind: 'lamp', category: 'output', name: 'Lamp', nameAr: 'مصباح 9V', x: 550, y: 220, rotation: 0, value: 9, unit: 'V', label: 'Night Lamp' }
+    id: 'ohms_law',
+    fileName: 'Ohms Law.cwz',
+    category: 'Elementary Circuits',
+    subGroup: 'Electrical Theory',
+    title: "Ohm's Law",
+    titleAr: 'قانون أوم (Ohm\'s Law: V = I × R)',
+    desc: 'Verify Ohm\'s Law by measuring current and voltage across a precision 1kΩ resistor with live instruments.',
+    sheetTitle: 'Electrical Theory',
+    instructions: {
+      title: "Ohm's Law—Relationship between V, I, and R.",
+      line1: 'Current is directly proportional to voltage and inversely to resistance.',
+      line2: 'With 9V and 1kΩ, the circuit draws exactly 9mA.'
+    },
+    elements: [
+      { id: 'bat1', ref: 'B1', kind: 'battery_9v', name: '9V Battery', nameAr: 'بطارية 9V', x: 130, y: 310, rotation: 0, value: 9, unit: 'V' },
+      { id: 'sw1', ref: 'SW1', kind: 'switch_spst', name: 'Switch SW1', nameAr: 'مفتاح SW1', x: 215, y: 175, rotation: 0, value: 0, unit: '', state: true },
+      { id: 'r1', ref: 'R1', kind: 'resistor', name: '1kΩ Resistor', nameAr: 'مقاومة 1kΩ', x: 280, y: 285, rotation: 0, value: 1000, unit: 'Ω' },
+      { id: 'vm1', ref: 'VM1', kind: 'voltmeter', name: 'Voltmeter', nameAr: 'فولتميتر', x: 380, y: 285, rotation: 0, value: 0, unit: 'V' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'ldr1', toPinId: 'p1' },
-      { id: 'w2', fromCompId: 'ldr1', fromPinId: 'p2', toCompId: 'r1', toPinId: 'p1' },
-      { id: 'w3', fromCompId: 'ldr1', fromPinId: 'p2', toCompId: 'op1', toPinId: 'noninv' },
-      { id: 'w4', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w5', fromCompId: 'op1', fromPinId: 'out', toCompId: 'lamp1', toPinId: 'p1' },
-      { id: 'w6', fromCompId: 'lamp1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg' }
-    ]
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'r1', toPinId: 'p1', color: '#2563eb' },
+      { id: 'w3', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg', color: '#111827' },
+      { id: 'w4', fromCompId: 'r1', fromPinId: 'p1', toCompId: 'vm1', toPinId: 'pos', color: '#dc2626' },
+      { id: 'w5', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'vm1', toPinId: 'neg', color: '#111827' }
+    ],
+    schematicBox: { x: 285, y: 345, width: 180, height: 135 }
   },
+
+  // 5. Doorbell Circuit
   {
-    id: 'logic_and_gate',
-    title: 'بوابة منطقية AND مع جدول الحقيقة والتحقق',
-    desc: 'مفاتيح إدخال منطقية مع بوابة 7408 AND ودايود LED يضيء فقط عند تفعيل كلا المدخلين معاً (1 AND 1 = 1).',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '5V Supply', nameAr: 'تغذية 5V', x: 100, y: 220, rotation: 0, value: 5, unit: 'V', label: '5V' },
-      { id: 'sw1', kind: 'switch_spst', category: 'input', name: 'Input A', nameAr: 'مدخل A', x: 220, y: 160, rotation: 0, value: 0, unit: '', label: 'A', state: true },
-      { id: 'sw2', kind: 'switch_spst', category: 'input', name: 'Input B', nameAr: 'مدخل B', x: 220, y: 260, rotation: 0, value: 0, unit: '', label: 'B', state: true },
-      { id: 'gate1', kind: 'gate_and', category: 'logic', name: 'AND Gate 7408', nameAr: 'بوابة AND', x: 380, y: 210, rotation: 0, value: 0, unit: '', label: '74LS08' },
-      { id: 'r1', kind: 'resistor', category: 'passive', name: 'Resistor', nameAr: 'مقاومة 330Ω', x: 490, y: 210, rotation: 0, value: 330, unit: 'Ω', label: '330Ω' },
-      { id: 'led1', kind: 'led', category: 'discrete', name: 'Green LED', nameAr: 'LED أخضر', x: 590, y: 210, rotation: 0, value: 2.2, unit: 'V', label: 'LED', color: '#22c55e' }
+    id: 'doorbell_circuit',
+    fileName: 'Doorbell Circuit.cwz',
+    category: 'Elementary Circuits',
+    subGroup: 'General',
+    title: 'Doorbell Circuit',
+    titleAr: 'دائرة جرس الباب الصوتي (Doorbell Circuit)',
+    desc: 'A momentary push-to-make switch triggers an audible piezoelectric sounder/buzzer.',
+    sheetTitle: 'Elementary Circuit',
+    instructions: {
+      title: 'Doorbell Circuit—Push to sound buzzer.',
+      line1: 'Click Run, then click the switch to complete the loop.',
+      line2: 'The piezoelectric buzzer sounds with clear acoustic feedback.'
+    },
+    elements: [
+      { id: 'bat1', ref: 'B1', kind: 'battery_9v', name: '9V Battery', nameAr: 'بطارية 9V', x: 130, y: 310, rotation: 0, value: 9, unit: 'V' },
+      { id: 'sw1', ref: 'SW1', kind: 'push_button', name: 'Push SW1', nameAr: 'زر جرس', x: 215, y: 175, rotation: 0, value: 0, unit: '', state: false },
+      { id: 'bz1', ref: 'BZ1', kind: 'buzzer', name: 'Piezo Buzzer', nameAr: 'جرس بيزو', x: 275, y: 285, rotation: 0, value: 9, unit: 'V' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1' },
-      { id: 'w2', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw2', toPinId: 'p1' },
-      { id: 'w3', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'gate1', toPinId: 'in1' },
-      { id: 'w4', fromCompId: 'sw2', fromPinId: 'p2', toCompId: 'gate1', toPinId: 'in2' },
-      { id: 'w5', fromCompId: 'gate1', fromPinId: 'out', toCompId: 'r1', toPinId: 'p1' },
-      { id: 'w6', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'led1', toPinId: 'anode' },
-      { id: 'w7', fromCompId: 'led1', fromPinId: 'cathode', toCompId: 'bat1', toPinId: 'neg' }
-    ]
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'bz1', toPinId: 'pos', color: '#2563eb' },
+      { id: 'w3', fromCompId: 'bz1', fromPinId: 'neg', toCompId: 'bat1', toPinId: 'neg', color: '#111827' }
+    ],
+    schematicBox: { x: 285, y: 345, width: 180, height: 135 }
   },
+
+  // 6. Motor Circuit
   {
-    id: 'astable_555',
-    title: 'مؤقت 555 كمذبذب نبضات غير مستقر (Astable Multivibrator)',
-    desc: 'دائرة توليد النبضات المربعة والتحكم في تردد الوميض بواسطة المكثف والمقاومتين مع راسم الإشارة.',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '9V Battery', nameAr: 'بطارية 9V', x: 90, y: 240, rotation: 0, value: 9, unit: 'V', label: '9V' },
-      { id: 'ic1', kind: 'ic_555', category: 'ic', name: 'NE555 Timer', nameAr: 'مؤقت NE555', x: 300, y: 230, rotation: 0, value: 0, unit: '', label: 'NE555' },
-      { id: 'ra', kind: 'resistor', category: 'passive', name: 'RA 1kΩ', nameAr: 'مقاومة RA 1kΩ', x: 200, y: 130, rotation: 90, value: 1000, unit: 'Ω', label: '1kΩ' },
-      { id: 'rb', kind: 'resistor', category: 'passive', name: 'RB 10kΩ', nameAr: 'مقاومة RB 10kΩ', x: 200, y: 250, rotation: 90, value: 10000, unit: 'Ω', label: '10kΩ' },
-      { id: 'c1', kind: 'capacitor_electrolytic', category: 'passive', name: 'Capacitor 10µF', nameAr: 'مكثف C 10µF', x: 200, y: 360, rotation: 90, value: 0.00001, unit: 'F', label: '10µF' },
-      { id: 'led1', kind: 'led', category: 'discrete', name: 'Blue LED', nameAr: 'LED أزرق', x: 450, y: 230, rotation: 0, value: 3.2, unit: 'V', label: 'Pulse LED', color: '#3b82f6' },
-      { id: 'osc1', kind: 'oscilloscope', category: 'instruments', name: 'Mini Scope', nameAr: 'راسم الإشارة', x: 570, y: 230, rotation: 0, value: 0, unit: '', label: 'Waveform' }
+    id: 'motor_circuit',
+    fileName: 'Motor Circuit.cwz',
+    category: 'Elementary Circuits',
+    subGroup: 'Mechanisms',
+    title: 'Motor Circuit',
+    titleAr: 'دائرة تشغيل المحرك الكهربائي DC مع مفتاح',
+    desc: 'Demonstrates electromagnetic rotary actuation with a high-torque DC motor and on/off power switch.',
+    sheetTitle: 'Mechanisms',
+    instructions: {
+      title: 'Motor Circuit—Electric drive and rotation.',
+      line1: 'Click Run and flip switch SW1 to close the circuit.',
+      line2: 'Observe the kinetic rotational motion of the rotor shaft.'
+    },
+    elements: [
+      { id: 'bat1', ref: 'B1', kind: 'battery_4aa', name: '6V Battery Pack', nameAr: 'علبة بطاريات 6V', x: 130, y: 310, rotation: 0, value: 6, unit: 'V' },
+      { id: 'sw1', ref: 'SW1', kind: 'switch_spst', name: 'Switch SW1', nameAr: 'مفتاح SW1', x: 215, y: 175, rotation: 0, value: 0, unit: '', state: true },
+      { id: 'mot1', ref: 'M1', kind: 'motor', name: 'DC Motor', nameAr: 'محرك DC', x: 275, y: 285, rotation: 0, value: 6, unit: 'V' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'ic1', toPinId: 'vcc' },
-      { id: 'w2', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'ic1', toPinId: 'rst' },
-      { id: 'w3', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'ra', toPinId: 'p1' },
-      { id: 'w4', fromCompId: 'ra', fromPinId: 'p2', toCompId: 'ic1', toPinId: 'dis' },
-      { id: 'w5', fromCompId: 'ra', fromPinId: 'p2', toCompId: 'rb', toPinId: 'p1' },
-      { id: 'w6', fromCompId: 'rb', fromPinId: 'p2', toCompId: 'ic1', toPinId: 'thr' },
-      { id: 'w7', fromCompId: 'rb', fromPinId: 'p2', toCompId: 'ic1', toPinId: 'trig' },
-      { id: 'w8', fromCompId: 'rb', fromPinId: 'p2', toCompId: 'c1', toPinId: 'pos' },
-      { id: 'w9', fromCompId: 'c1', fromPinId: 'neg', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w10', fromCompId: 'ic1', fromPinId: 'gnd', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w11', fromCompId: 'ic1', fromPinId: 'out', toCompId: 'led1', toPinId: 'anode' },
-      { id: 'w12', fromCompId: 'led1', fromPinId: 'cathode', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w13', fromCompId: 'ic1', fromPinId: 'out', toCompId: 'osc1', toPinId: 'ch1' },
-      { id: 'w14', fromCompId: 'bat1', fromPinId: 'neg', toCompId: 'osc1', toPinId: 'gnd' }
-    ]
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'mot1', toPinId: 'p1', color: '#2563eb' },
+      { id: 'w3', fromCompId: 'mot1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg', color: '#111827' }
+    ],
+    schematicBox: { x: 285, y: 345, width: 180, height: 135 }
   },
+
+  // 7. Breadboard Starter Circuit
   {
-    id: 'relay_driver',
-    title: 'دائرة المرحل الكهرومغناطيسي Relay لتشغيل الأحمال',
-    desc: 'عزل كهربائي تام وتحكم في إضاءة مصباح 220V بواسطة مفتاح تحكم منخفض الجهد ومرحل SPDT.',
-    components: [
-      { id: 'bat1', kind: 'battery', category: 'power', name: '12V Supply', nameAr: 'تغذية 12V', x: 100, y: 220, rotation: 0, value: 12, unit: 'V', label: '12V' },
-      { id: 'sw1', kind: 'switch_spst', category: 'input', name: 'Relay Switch', nameAr: 'مفتاح التشغيل', x: 220, y: 160, rotation: 0, value: 0, unit: '', label: 'SW', state: true },
-      { id: 'rel1', kind: 'relay', category: 'output', name: 'Relay 12V', nameAr: 'مرحل Relay 12V', x: 360, y: 220, rotation: 0, value: 12, unit: 'V', label: 'Relay' },
-      { id: 'lamp1', kind: 'lamp', category: 'output', name: 'Main Lamp', nameAr: 'مصباح الحمل', x: 520, y: 220, rotation: 0, value: 12, unit: 'V', label: 'Lamp' }
+    id: 'breadboard_starter',
+    fileName: 'Breadboard Experiment.cwz',
+    category: 'Basic Circuits',
+    subGroup: 'General',
+    title: 'Breadboard Prototyping',
+    titleAr: 'لوحة التجارب والتوصيل الحي (Breadboard)',
+    desc: 'Solderless breadboard layout with power rails, switch, limiting resistor, and LED ready for prototyping.',
+    sheetTitle: 'Breadboard Circuit',
+    instructions: {
+      title: 'Breadboard Prototyping—Solderless assembly.',
+      line1: 'Connect battery leads to the power rails and build your circuit.',
+      line2: 'Drag components freely across the board.'
+    },
+    elements: [
+      { id: 'bb1', ref: 'BB1', kind: 'breadboard', name: 'Breadboard', nameAr: 'لوحة تجارب Breadboard', x: 380, y: 280, rotation: 0, value: 0, unit: '' },
+      { id: 'bat1', ref: 'B1', kind: 'battery_9v', name: '9V Battery', nameAr: 'بطارية 9V', x: 130, y: 280, rotation: 0, value: 9, unit: 'V' },
+      { id: 'sw1', ref: 'SW1', kind: 'switch_spst', name: 'Toggle SW1', nameAr: 'مفتاح SW1', x: 380, y: 180, rotation: 0, value: 0, unit: '', state: true },
+      { id: 'r1', ref: 'R1', kind: 'resistor', name: '330Ω Resistor', nameAr: 'مقاومة 330Ω', x: 380, y: 280, rotation: 90, value: 330, unit: 'Ω' },
+      { id: 'led1', ref: 'LED1', kind: 'led', name: 'Green LED', nameAr: 'LED أخضر', x: 380, y: 380, rotation: 0, value: 2.2, unit: 'V', color: '#22c55e' }
     ],
     wires: [
-      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'sw1', toPinId: 'p1' },
-      { id: 'w2', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'rel1', toPinId: 'coil1' },
-      { id: 'w3', fromCompId: 'rel1', fromPinId: 'coil2', toCompId: 'bat1', toPinId: 'neg' },
-      { id: 'w4', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'rel1', toPinId: 'com' },
-      { id: 'w5', fromCompId: 'rel1', fromPinId: 'no', toCompId: 'lamp1', toPinId: 'p1' },
-      { id: 'w6', fromCompId: 'lamp1', fromPinId: 'p2', toCompId: 'bat1', toPinId: 'neg' }
+      { id: 'w1', fromCompId: 'bat1', fromPinId: 'pos', toCompId: 'bb1', toPinId: 'pos_top', color: '#dc2626' },
+      { id: 'w2', fromCompId: 'bat1', fromPinId: 'neg', toCompId: 'bb1', toPinId: 'neg_top', color: '#111827' },
+      { id: 'w3', fromCompId: 'bb1', fromPinId: 'pos_top', toCompId: 'sw1', toPinId: 'p1', color: '#dc2626' },
+      { id: 'w4', fromCompId: 'sw1', fromPinId: 'p2', toCompId: 'r1', toPinId: 'p1', color: '#2563eb' },
+      { id: 'w5', fromCompId: 'r1', fromPinId: 'p2', toCompId: 'led1', toPinId: 'anode', color: '#2563eb' },
+      { id: 'w6', fromCompId: 'led1', fromPinId: 'cathode', toCompId: 'bb1', toPinId: 'neg_top', color: '#111827' }
     ]
   }
 ];
 
+// ==========================================
+// 4. Component Gallery Definition
+// ==========================================
+export interface GalleryItem {
+  kind: ComponentKind;
+  name: string;
+  nameAr: string;
+  category: string;
+  defaultVal: number;
+  unit: string;
+}
+
+export const GALLERY_CATEGORIES = [
+  'Power Supplies',
+  'Boards & Prototyping',
+  'Input Components',
+  'Passive Components',
+  'Discrete Semiconductors',
+  'Output Components',
+  'Test Equipment'
+] as const;
+
+export const GALLERY_ITEMS: GalleryItem[] = [
+  { kind: 'battery_aa', name: 'AA Battery 1.5V', nameAr: 'بطارية قلم 1.5V AA', category: 'Power Supplies', defaultVal: 1.5, unit: 'V' },
+  { kind: 'battery_9v', name: 'PP3 9V Battery with Clip', nameAr: 'بطارية 9V مع مشبك', category: 'Power Supplies', defaultVal: 9, unit: 'V' },
+  { kind: 'battery_4aa', name: '4 x AA Battery Pack 6V', nameAr: 'علبة بطاريات 4xAA (6V)', category: 'Power Supplies', defaultVal: 6, unit: 'V' },
+  { kind: 'breadboard', name: 'Solderless Breadboard', nameAr: 'لوحة تجارب Breadboard', category: 'Boards & Prototyping', defaultVal: 0, unit: '' },
+  { kind: 'switch_spst', name: 'SPST Toggle Switch', nameAr: 'مفتاح قلاب SPST', category: 'Input Components', defaultVal: 0, unit: '' },
+  { kind: 'push_button', name: 'Push-to-Make Switch', nameAr: 'زر ضغط Push Button', category: 'Input Components', defaultVal: 0, unit: '' },
+  { kind: 'potentiometer', name: 'Rotary Potentiometer 10k', nameAr: 'مقاومة متغيرة Potentiometer', category: 'Input Components', defaultVal: 10000, unit: 'Ω' },
+  { kind: 'resistor', name: 'Resistor 1kΩ (Carbon Film)', nameAr: 'مقاومة كربونية 1kΩ', category: 'Passive Components', defaultVal: 1000, unit: 'Ω' },
+  { kind: 'capacitor', name: 'Capacitor 100µF', nameAr: 'مكثف إلكتروليتي 100µF', category: 'Passive Components', defaultVal: 100, unit: 'µF' },
+  { kind: 'led', name: '5mm Red LED', nameAr: 'دايود ضوئي LED', category: 'Discrete Semiconductors', defaultVal: 2.1, unit: 'V' },
+  { kind: 'diode', name: '1N4007 Rectifier Diode', nameAr: 'دايود مقوم 1N4007', category: 'Discrete Semiconductors', defaultVal: 0.7, unit: 'V' },
+  { kind: 'bulb', name: 'Filament Lamp 1.5V', nameAr: 'مصباح توهج 1.5V', category: 'Output Components', defaultVal: 1.5, unit: 'V' },
+  { kind: 'buzzer', name: 'Piezo Buzzer 9V', nameAr: 'جرس بيزو Piezo Buzzer', category: 'Output Components', defaultVal: 9, unit: 'V' },
+  { kind: 'motor', name: 'Miniature DC Motor', nameAr: 'محرك تيار مستمر DC', category: 'Output Components', defaultVal: 6, unit: 'V' },
+  { kind: 'voltmeter', name: 'Digital Voltmeter', nameAr: 'فولتميتر رقمي', category: 'Test Equipment', defaultVal: 0, unit: 'V' },
+  { kind: 'ammeter', name: 'Digital Ammeter', nameAr: 'أمبيرميتر رقمي', category: 'Test Equipment', defaultVal: 0, unit: 'A' }
+];
+
+// ==========================================
+// 5. Main Component: CircuitWizardLab
+// ==========================================
 export function CircuitWizardLab() {
-  // --- Canvas State & Circuit Elements ---
-  const [elements, setElements] = useState<CircuitElement[]>(() => {
-    return PRESET_CIRCUITS[0].components as CircuitElement[];
-  });
-  const [wires, setWires] = useState<CircuitWire[]>(() => {
-    return PRESET_CIRCUITS[0].wires as CircuitWire[];
-  });
+  // Current active circuit / project
+  const [activeCircuit, setActiveCircuit] = useState<CWSampleCircuit>(CW_SAMPLE_CIRCUITS[0]);
+  const [elements, setElements] = useState<CWElement[]>(CW_SAMPLE_CIRCUITS[0].elements);
+  const [wires, setWires] = useState<CWWire[]>(CW_SAMPLE_CIRCUITS[0].wires);
 
-  // History for Undo/Redo
-  const [history, setHistory] = useState<{ elements: CircuitElement[]; wires: CircuitWire[] }[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
-
-  // Selected component
-  const [selectedCompId, setSelectedCompId] = useState<string | null>('r1');
-  // Wire creation state
-  const [wiringFrom, setWiringFrom] = useState<{ compId: string; pinId: string } | null>(null);
-
-  // Simulation controls
-  const [isRunning, setIsRunning] = useState<boolean>(true);
-  const [simSpeed, setSimSpeed] = useState<number>(1);
+  // Simulation State
+  const [isSimulating, setIsSimulating] = useState<boolean>(true);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
   const [currentTick, setCurrentTick] = useState<number>(0);
 
-  // Circuit Wizard Modes
-  const [viewMode, setViewMode] = useState<'schematic' | 'realworld'>('realworld');
-  const [showCurrentFlow, setShowCurrentFlow] = useState<boolean>(true);
-  const [showVoltageColors, setShowVoltageColors] = useState<boolean>(true);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  // View Mode: 'realworld' | 'normal' | 'current_flow' | 'voltage_levels' | 'standard'
+  const [mode, setMode] = useState<CircuitWizardMode>('realworld');
 
-  // Drawers and Modals
-  const [libraryOpen, setLibraryOpen] = useState<boolean>(true);
-  const [selectedCategory, setSelectedCategory] = useState<ComponentCategory>('passive');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showPresetsModal, setShowPresetsModal] = useState<boolean>(false);
-  const [showInspector, setShowInspector] = useState<boolean>(false);
-  const [showReportModal, setShowReportModal] = useState<boolean>(false);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [showMobileTools, setShowMobileTools] = useState<boolean>(false);
-  const lastTouchDistRef = useRef<number | null>(null);
-
-  // Student Report State
-  const [studentName, setStudentName] = useState<string>('طالب هندسة ميكاترونكس');
-  const [universityName, setUniversityName] = useState<string>('جامعة صنعاء / عدن / تعز / ذمار');
-
-  // Canvas Pan & Zoom
-  const [scale, setScale] = useState<number>(1);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 40, y: 30 });
-  const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  // Dragging Component
+  // Interactive Selection, Dragging & Wiring
+  const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
+  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [wiringFrom, setWiringFrom] = useState<{ compId: string; pinId: string; x: number; y: number } | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [wireColor, setWireColor] = useState<string>('#dc2626');
+  const [showGrid, setShowGrid] = useState<boolean>(true);
 
-  // Short circuit or alert banner
-  const [circuitAlert, setCircuitAlert] = useState<{ type: 'short' | 'overload' | 'polarity'; message: string } | null>(null);
+  // Right sidebar tab ('assistant' | 'gallery' | null)
+  const [rightTab, setRightTab] = useState<'assistant' | 'gallery' | null>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) return null;
+    return 'assistant';
+  });
 
-  const canvasRef = useRef<SVGSVGElement | null>(null);
+  const [gallerySelectedCategory, setGallerySelectedCategory] = useState<string>('Power Supplies');
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
+    'Elementary Circuits': true,
+    'General': true,
+    'Electrical Theory': true,
+    'Measuring': true,
+    'Mechanisms': true,
+    'Basic Circuits': false,
+    'Advanced Circuits': false
+  });
 
-  // Push state to undo history
-  const pushHistory = (newElements: CircuitElement[], newWires: CircuitWire[]) => {
-    setHistory((prev) => [...prev.slice(0, historyIndex + 1), { elements: newElements, wires: newWires }]);
-    setHistoryIndex((prev) => prev + 1);
-  };
+  // Bottom sheet tab: 'circuit' | 'bom'
+  const [bottomTab, setBottomTab] = useState<'circuit' | 'bom'>('circuit');
 
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prev = history[historyIndex - 1];
-      setElements(prev.elements);
-      setWires(prev.wires);
-      setHistoryIndex((i) => i - 1);
+  // Zoom level (default 100%)
+  const [zoomPercent, setZoomPercent] = useState<number>(100);
+
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const labContainerRef = useRef<HTMLDivElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // Sound enabled
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Modals
+  const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
+  const [showPropertiesModal, setShowPropertiesModal] = useState<boolean>(false);
+  const [editingComp, setEditingComp] = useState<CWElement | null>(null);
+
+  // Active menu dropdown
+  const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'project' | null>(null);
+
+  // ----------------------------------------------------
+  // Dynamic Circuit Physics Solver
+  // ----------------------------------------------------
+  const solvedState = useMemo(() => {
+    if (!isSimulating || isPaused) {
+      return { isLoopActive: false, elementValues: {}, hasShortCircuit: false, meterReadings: {} };
     }
-  };
 
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1];
-      setElements(next.elements);
-      setWires(next.wires);
-      setHistoryIndex((i) => i + 1);
+    const batteries = elements.filter(
+      (e) => e.kind === 'battery_aa' || e.kind === 'battery_9v' || e.kind === 'battery_4aa'
+    );
+
+    if (batteries.length === 0) {
+      return { isLoopActive: false, elementValues: {}, hasShortCircuit: false, meterReadings: {} };
     }
-  };
 
-  // --- Real Physical Simulation Solver ---
+    // Build pin connectivity adjacency map
+    const adj: Record<string, Array<{ compId: string; pinId: string }>> = {};
+    wires.forEach((w) => {
+      const fromKey = `${w.fromCompId}:${w.fromPinId}`;
+      const toKey = `${w.toCompId}:${w.toPinId}`;
+      if (!adj[fromKey]) adj[fromKey] = [];
+      if (!adj[toKey]) adj[toKey] = [];
+      adj[fromKey].push({ compId: w.toCompId, pinId: w.toPinId });
+      adj[toKey].push({ compId: w.fromCompId, pinId: w.fromPinId });
+    });
+
+    let isLoopActive = false;
+    let hasShortCircuit = false;
+    const elementValues: Record<
+      string,
+      { voltageDrop: number; currentThrough: number; isLit: boolean; isSpinning: boolean; isBuzzing: boolean }
+    > = {};
+    const meterReadings: Record<string, number> = {};
+
+    batteries.forEach((bat) => {
+      const posKey = `${bat.id}:pos`;
+      const negKey = `${bat.id}:neg`;
+
+      // BFS to find complete circuit loop
+      const queue: Array<{ currentPinKey: string; currentCompId: string; pathComps: string[] }> = [
+        { currentPinKey: posKey, currentCompId: bat.id, pathComps: [bat.id] }
+      ];
+      const visited = new Set<string>([posKey]);
+      let closedLoopPath: string[] | null = null;
+
+      while (queue.length > 0) {
+        const { currentPinKey, pathComps } = queue.shift()!;
+
+        if (currentPinKey === negKey && pathComps.length > 1) {
+          closedLoopPath = pathComps;
+          break;
+        }
+
+        const neighbors = adj[currentPinKey] || [];
+        for (const n of neighbors) {
+          const neighborKey = `${n.compId}:${n.pinId}`;
+          if (!visited.has(neighborKey)) {
+            visited.add(neighborKey);
+
+            const comp = elements.find((e) => e.id === n.compId);
+            if (!comp) continue;
+
+            // If component is an open switch/pushbutton, path is blocked!
+            if ((comp.kind === 'switch_spst' || comp.kind === 'push_button') && comp.state === false) {
+              continue;
+            }
+
+            const compPins = COMPONENT_PINS[comp.kind] || [];
+            for (const p of compPins) {
+              const otherPinKey = `${comp.id}:${p.id}`;
+              if (!visited.has(otherPinKey)) {
+                visited.add(otherPinKey);
+                queue.push({
+                  currentPinKey: otherPinKey,
+                  currentCompId: comp.id,
+                  pathComps: [...pathComps, comp.id]
+                });
+              }
+            }
+          }
+        }
+      }
+
+      if (closedLoopPath && closedLoopPath.length > 1) {
+        isLoopActive = true;
+        const vSource = bat.value || 1.5;
+
+        // Calculate loop total equivalent resistance
+        let rTotal = 0.2; // Internal battery resistance
+        let hasLoad = false;
+
+        closedLoopPath.forEach((cid) => {
+          const c = elements.find((e) => e.id === cid);
+          if (!c) return;
+          if (c.kind === 'resistor') {
+            rTotal += c.value || 1000;
+            hasLoad = true;
+          } else if (c.kind === 'bulb') {
+            rTotal += 5; // ~5 ohms filament
+            hasLoad = true;
+          } else if (c.kind === 'potentiometer') {
+            const potR = ((c.value || 10000) * (c.setting ?? 50)) / 100;
+            rTotal += Math.max(1, potR);
+            hasLoad = true;
+          } else if (c.kind === 'led') {
+            rTotal += 50; // LED internal drop
+            hasLoad = true;
+          } else if (c.kind === 'motor') {
+            rTotal += 12; // Motor DC resistance
+            hasLoad = true;
+          } else if (c.kind === 'buzzer') {
+            rTotal += 80;
+            hasLoad = true;
+          } else if (c.kind === 'ammeter') {
+            rTotal += 0.05; // Ideal low resistance ammeter
+          }
+        });
+
+        if (!hasLoad || rTotal < 0.5) {
+          hasShortCircuit = true;
+        }
+
+        const loopCurrent = vSource / Math.max(0.1, rTotal);
+
+        // Assign voltages & states
+        closedLoopPath.forEach((cid) => {
+          const c = elements.find((e) => e.id === cid);
+          if (!c) return;
+
+          let compV = 0;
+          if (c.kind === 'bulb') {
+            compV = Math.min(vSource, loopCurrent * 5);
+            elementValues[cid] = {
+              voltageDrop: compV,
+              currentThrough: loopCurrent,
+              isLit: compV > 0.5,
+              isSpinning: false,
+              isBuzzing: false
+            };
+          } else if (c.kind === 'led') {
+            compV = Math.min(vSource, loopCurrent * 50);
+            elementValues[cid] = {
+              voltageDrop: compV,
+              currentThrough: loopCurrent,
+              isLit: loopCurrent > 0.002,
+              isSpinning: false,
+              isBuzzing: false
+            };
+          } else if (c.kind === 'motor') {
+            compV = Math.min(vSource, loopCurrent * 12);
+            elementValues[cid] = {
+              voltageDrop: compV,
+              currentThrough: loopCurrent,
+              isLit: false,
+              isSpinning: loopCurrent > 0.05,
+              isBuzzing: false
+            };
+          } else if (c.kind === 'buzzer') {
+            compV = Math.min(vSource, loopCurrent * 80);
+            elementValues[cid] = {
+              voltageDrop: compV,
+              currentThrough: loopCurrent,
+              isLit: false,
+              isSpinning: false,
+              isBuzzing: compV > 2.0
+            };
+          } else if (c.kind === 'resistor') {
+            compV = loopCurrent * (c.value || 1000);
+            elementValues[cid] = {
+              voltageDrop: compV,
+              currentThrough: loopCurrent,
+              isLit: false,
+              isSpinning: false,
+              isBuzzing: false
+            };
+          } else if (c.kind === 'ammeter') {
+            meterReadings[cid] = loopCurrent;
+          }
+        });
+
+        // Compute voltmeter readings
+        elements.filter(e => e.kind === 'voltmeter').forEach(vm => {
+          // Check if connected across any element in the active loop
+          meterReadings[vm.id] = vSource;
+        });
+      }
+    });
+
+    return { isLoopActive, elementValues, hasShortCircuit, meterReadings };
+  }, [elements, wires, isSimulating, isPaused]);
+
+  // Simulation tick loop for current flow animation
   useEffect(() => {
-    if (!isRunning) return;
-
+    if (!isSimulating || isPaused) return;
     const interval = setInterval(() => {
       setCurrentTick((t) => (t + 1) % 1000);
-      solveCircuit();
-    }, 100 / simSpeed);
-
+    }, 40);
     return () => clearInterval(interval);
-  }, [isRunning, simSpeed, elements, wires]);
+  }, [isSimulating, isPaused]);
 
-  // Solver engine function
-  const solveCircuit = () => {
-    // 1. Identify power sources
-    const battery = elements.find(
-      (e) =>
-        e.kind === 'battery' ||
-        e.kind === 'battery_aa' ||
-        e.kind === 'battery_18650' ||
-        e.kind === 'battery_lead_acid' ||
-        e.kind === 'solar_cell' ||
-        e.kind === 'dc_source'
-    );
-
-    if (!battery) {
-      setCircuitAlert(null);
-      return;
-    }
-
-    const vSource = battery.value || 9;
-
-    // Check switches states
-    const switches = elements.filter(
-      (e) => e.kind === 'switch_spst' || e.kind === 'push_button' || e.kind === 'push_button_nc'
-    );
-    const allSwitchesClosed = switches.every((sw) => {
-      if (sw.kind === 'push_button_nc') return sw.state !== true;
-      return sw.state === true;
-    });
-
-    let shortDetected = false;
-    let overloadDetected: string | null = null;
-    let reversePolarityDetected: string | null = null;
-
-    // Direct short circuit: wire from battery pos directly to neg without resistance
-    const directShort = wires.some(
-      (w) =>
-        (w.fromPinId === 'pos' && w.toPinId === 'neg') ||
-        (w.fromPinId === 'neg' && w.toPinId === 'pos')
-    );
-    if (directShort) {
-      shortDetected = true;
-      if (soundEnabled) audioEngine.playShortCircuitAlert();
-    }
-
-    // 555 Timer Oscillation state calculation
-    const has555 = elements.some((e) => e.kind === 'ic_555');
-    const timer555Osc = has555 ? (Math.floor(currentTick / 4) % 2 === 0) : false;
-
-    // Calculate updated elements
-    const updatedElements = elements.map((comp) => {
-      let voltageDrop = 0;
-      let currentThrough = 0;
-      let powerDissipated = 0;
-      let isOverloaded = false;
-      let reversePolarityBlown = false;
-      let activeOutput = false;
-      let motorSpeed = 0;
-      let buzzerActive = false;
-
-      if (!allSwitchesClosed && switches.length > 0) {
-        return {
-          ...comp,
-          voltageDrop: 0,
-          currentThrough: 0,
-          powerDissipated: 0,
-          isOverloaded: false,
-          activeOutput: false,
-          motorSpeed: 0,
-          buzzerActive: false
-        };
-      }
-
-      // Component specific behaviors
-      if (comp.kind === 'resistor') {
-        const totalR = elements
-          .filter((e) => e.kind === 'resistor')
-          .reduce((acc, curr) => acc + curr.value, 0);
-
-        if (totalR > 0) {
-          currentThrough = vSource / totalR;
-          voltageDrop = currentThrough * comp.value;
-          powerDissipated = voltageDrop * currentThrough;
-        }
-      } else if (comp.kind === 'led') {
-        const hasResistor = elements.some((e) => e.kind === 'resistor');
-        if (!hasResistor && vSource > 3.3) {
-          isOverloaded = true;
-          overloadDetected = comp.nameAr;
-          voltageDrop = vSource;
-          currentThrough = 0.6; // High burn current
-        } else {
-          // Normal active LED forward drop
-          voltageDrop = Math.min(comp.value || 2.1, vSource);
-          const res = elements.find((e) => e.kind === 'resistor');
-          const rVal = res ? res.value : 470;
-          currentThrough = Math.max(0, (vSource - voltageDrop) / rVal);
-          powerDissipated = voltageDrop * currentThrough;
-        }
-      } else if (comp.kind === 'capacitor_electrolytic') {
-        // Check reverse polarity
-        voltageDrop = vSource;
-      } else if (comp.kind === 'dc_motor') {
-        voltageDrop = vSource * 0.95;
-        currentThrough = 0.2;
-        motorSpeed = Math.min(3000, Math.round((voltageDrop / 12) * 2200));
-      } else if (comp.kind === 'lamp') {
-        voltageDrop = vSource;
-        currentThrough = 0.25;
-        powerDissipated = voltageDrop * currentThrough;
-      } else if (comp.kind === 'buzzer') {
-        voltageDrop = vSource;
-        currentThrough = 0.03;
-        buzzerActive = true;
-        if (soundEnabled && currentTick % 3 === 0) {
-          audioEngine.playBuzzer();
-        }
-      } else if (comp.kind === 'relay') {
-        voltageDrop = vSource;
-        activeOutput = true;
-      } else if (comp.kind === 'gate_and') {
-        const sw1 = elements.find((e) => e.id === 'sw1');
-        const sw2 = elements.find((e) => e.id === 'sw2');
-        const inA = sw1 ? sw1.state : true;
-        const inB = sw2 ? sw2.state : true;
-        activeOutput = Boolean(inA && inB);
-        voltageDrop = activeOutput ? 5 : 0;
-      } else if (comp.kind === 'gate_or') {
-        const sw1 = elements.find((e) => e.id === 'sw1');
-        const sw2 = elements.find((e) => e.id === 'sw2');
-        const inA = sw1 ? sw1.state : true;
-        const inB = sw2 ? sw2.state : false;
-        activeOutput = Boolean(inA || inB);
-        voltageDrop = activeOutput ? 5 : 0;
-      } else if (comp.kind === 'gate_not') {
-        const sw1 = elements.find((e) => e.id === 'sw1');
-        const inA = sw1 ? sw1.state : false;
-        activeOutput = !inA;
-        voltageDrop = activeOutput ? 5 : 0;
-      } else if (comp.kind === 'gate_nand') {
-        const sw1 = elements.find((e) => e.id === 'sw1');
-        const sw2 = elements.find((e) => e.id === 'sw2');
-        const inA = sw1 ? sw1.state : true;
-        const inB = sw2 ? sw2.state : true;
-        activeOutput = !(inA && inB);
-        voltageDrop = activeOutput ? 5 : 0;
-      } else if (comp.kind === 'ic_555') {
-        activeOutput = timer555Osc;
-        voltageDrop = activeOutput ? vSource * 0.9 : 0;
-      } else if (comp.kind === 'opamp') {
-        const ldr = elements.find((e) => e.kind === 'ldr');
-        const lux = ldr?.setting || 50;
-        activeOutput = lux < 35; // Turns ON in dark
-        voltageDrop = activeOutput ? vSource : 0;
-      } else if (comp.kind === 'voltmeter') {
-        const r2 = elements.find((e) => e.id === 'r2');
-        if (r2 && r2.voltageDrop) {
-          voltageDrop = r2.voltageDrop;
-        } else {
-          voltageDrop = vSource * 0.66;
-        }
-      } else if (comp.kind === 'ammeter') {
-        const res = elements.find((e) => e.kind === 'resistor');
-        const totalR = elements.filter((e) => e.kind === 'resistor').reduce((a, b) => a + b.value, 0) || 1000;
-        currentThrough = vSource / totalR;
-      } else if (comp.kind === 'logic_probe') {
-        const anyActive = elements.some((e) => e.activeOutput);
-        activeOutput = anyActive || allSwitchesClosed;
-      }
-
-      return {
-        ...comp,
-        voltageDrop,
-        currentThrough,
-        powerDissipated,
-        isOverloaded,
-        reversePolarityBlown,
-        activeOutput,
-        motorSpeed,
-        buzzerActive
-      };
-    });
-
-    setElements(updatedElements);
-
-    // Update wires
-    const updatedWires = wires.map((wire) => {
-      const fromComp = updatedElements.find((e) => e.id === wire.fromCompId);
-      const isNegative =
-        wire.toPinId === 'neg' ||
-        wire.fromPinId === 'neg' ||
-        wire.toPinId === 'gnd' ||
-        wire.fromPinId === 'gnd';
-      return {
-        ...wire,
-        voltage: isNegative ? 0 : vSource,
-        current: fromComp?.currentThrough || 0.015
-      };
-    });
-    setWires(updatedWires);
-
-    // Set Alert banners
-    if (shortDetected) {
-      setCircuitAlert({
-        type: 'short',
-        message: 'تحذير: تم اكتشاف قصر كهربائي مباشر (Short Circuit)! تيار لا نهائي يهدد باحتراق مصدر القدرة.'
-      });
-    } else if (overloadDetected) {
-      setCircuitAlert({
-        type: 'overload',
-        message: `تحذير: العنصر [${overloadDetected}] تعرض لتيار مفرط بدون مقاومة تحديد للتيار!`
-      });
-    } else if (reversePolarityDetected) {
-      setCircuitAlert({
-        type: 'polarity',
-        message: `تحذير قطبية: المكثف القطبي [${reversePolarityDetected}] تم توصيله معكوساً مما قد يؤدي لانفجاره!`
-      });
+  // Buzzer & Short circuit audio effects
+  useEffect(() => {
+    if (!soundEnabled || !isSimulating || isPaused) return;
+    if (solvedState.hasShortCircuit) {
+      cwAudio.playShortCircuitAlert();
     } else {
-      setCircuitAlert(null);
+      const buzzing = Object.values(solvedState.elementValues).some((v) => v.isBuzzing);
+      if (buzzing) {
+        cwAudio.playBuzzer();
+      }
     }
-  };
+  }, [solvedState, isSimulating, isPaused, soundEnabled]);
 
-  // --- Calculate Pin Canvas Coordinates with Rotation ---
-  const getPinCanvasCoords = (compId: string, pinId: string) => {
-    const comp = elements.find((e) => e.id === compId);
-    if (!comp) return { x: 0, y: 0 };
-    const pins = COMPONENT_PINS[comp.kind] || [];
-    const pin = pins.find((p) => p.id === pinId);
-    if (!pin) return { x: comp.x, y: comp.y };
-
-    const rad = (comp.rotation * Math.PI) / 180;
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    const rotX = pin.relX * cos - pin.relY * sin;
-    const rotY = pin.relX * sin + pin.relY * cos;
-
+  // Convert client coordinates to SVG canvas coordinates
+  const getCanvasCoords = useCallback((clientX: number, clientY: number) => {
+    if (!svgRef.current) return { x: 370, y: 280 };
+    const rect = svgRef.current.getBoundingClientRect();
+    const scaleX = 740 / (rect.width || 740);
+    const scaleY = 540 / (rect.height || 540);
     return {
-      x: comp.x + rotX,
-      y: comp.y + rotY
+      x: Math.max(10, Math.min(730, (clientX - rect.left) * scaleX)),
+      y: Math.max(10, Math.min(530, (clientY - rect.top) * scaleY))
     };
-  };
+  }, []);
 
-  // --- Pointer & Touch Interactions for Android / Mobile ---
-  const handlePointerDownCanvas = (e: React.PointerEvent) => {
-    // Canvas background drag or pan
-    if (e.target === canvasRef.current || (e.target as HTMLElement).tagName === 'rect') {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-      setWiringFrom(null);
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    }
-  };
-
-  const handlePointerMoveCanvas = (e: React.PointerEvent) => {
-    if (isPanning) {
-      setPan({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y
-      });
-    } else if (draggingCompId) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const mouseCanvasX = (e.clientX - rect.left - pan.x) / scale;
-      const mouseCanvasY = (e.clientY - rect.top - pan.y) / scale;
-
-      // Snap to 10px grid
-      const snappedX = Math.round((mouseCanvasX - dragOffset.x) / 10) * 10;
-      const snappedY = Math.round((mouseCanvasY - dragOffset.y) / 10) * 10;
-
-      setElements((prev) =>
-        prev.map((c) => (c.id === draggingCompId ? { ...c, x: snappedX, y: snappedY } : c))
-      );
-    }
-  };
-
-  const handlePointerUpCanvas = (e: React.PointerEvent) => {
-    setIsPanning(false);
-    if (draggingCompId) {
-      pushHistory(elements, wires);
-      setDraggingCompId(null);
-    }
-  };
-
-  const handleCompPointerDown = (e: React.PointerEvent, comp: CircuitElement) => {
-    e.stopPropagation();
-    setDraggingCompId(comp.id);
-    setSelectedCompId(comp.id);
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      const mouseCanvasX = (e.clientX - rect.left - pan.x) / scale;
-      const mouseCanvasY = (e.clientY - rect.top - pan.y) / scale;
-      setDragOffset({
-        x: mouseCanvasX - comp.x,
-        y: mouseCanvasY - comp.y
-      });
-    }
-  };
-
-  // Wire Connection Click
-  const handlePinClick = (e: React.MouseEvent | React.PointerEvent, compId: string, pinId: string) => {
-    e.stopPropagation();
-    if (!wiringFrom) {
-      setWiringFrom({ compId, pinId });
-    } else {
-      if (wiringFrom.compId !== compId || wiringFrom.pinId !== pinId) {
-        const newWire: CircuitWire = {
-          id: `w_${Date.now()}`,
-          fromCompId: wiringFrom.compId,
-          fromPinId: wiringFrom.pinId,
-          toCompId: compId,
-          toPinId: pinId,
-          color: '#3b82f6'
-        };
-        const nextWires = [...wires, newWire];
-        setWires(nextWires);
-        pushHistory(elements, nextWires);
-      }
-      setWiringFrom(null);
-    }
-  };
-
-  // Toggle Switch or Push Button State
-  const handleComponentClick = (e: React.MouseEvent, comp: CircuitElement) => {
-    e.stopPropagation();
-    setSelectedCompId(comp.id);
-    setShowInspector(true);
-
-    if (comp.kind === 'switch_spst' || comp.kind === 'push_button' || comp.kind === 'push_button_nc') {
-      if (soundEnabled) audioEngine.playRelayClick();
-      setElements((prev) =>
-        prev.map((el) => (el.id === comp.id ? { ...el, state: !el.state } : el))
-      );
-    }
-  };
-
-  // Multi-Touch Pinch to Zoom for Mobile
-  const handleCanvasTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      lastTouchDistRef.current = dist;
-    }
-  };
-
-  const handleCanvasTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && lastTouchDistRef.current !== null) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const diff = dist - lastTouchDistRef.current;
-      if (Math.abs(diff) > 2) {
-        const factor = diff > 0 ? 1.025 : 0.975;
-        setScale((s) => Math.min(2.5, Math.max(0.4, Number((s * factor).toFixed(2)))));
-        lastTouchDistRef.current = dist;
-      }
-    }
-  };
-
-  const handleCanvasTouchEnd = () => {
-    lastTouchDistRef.current = null;
-  };
-
-  // Adding Components to Canvas
-  const handleAddComponent = (
-    kind: ComponentKind,
-    name: string,
-    nameAr: string,
-    category: ComponentCategory,
-    val: number,
-    unit: string
-  ) => {
-    const canvasWidth = canvasRef.current?.clientWidth || 600;
-    const canvasHeight = canvasRef.current?.clientHeight || 450;
-    const newComp: CircuitElement = {
-      id: `c_${Date.now()}`,
-      kind,
-      category,
-      name,
-      nameAr,
-      x: Math.round((-pan.x + canvasWidth / 2) / scale),
-      y: Math.round((-pan.y + canvasHeight / 2) / scale),
-      rotation: 0,
-      value: val,
-      unit,
-      label: `${val}${unit}`,
-      state: true,
-      color: kind === 'led' ? '#ef4444' : undefined,
-      setting: 50
-    };
-    const nextElements = [...elements, newComp];
-    setElements(nextElements);
-    setSelectedCompId(newComp.id);
-    pushHistory(nextElements, wires);
-    // Auto-close library on mobile/tablet so student immediately interacts with component
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      setLibraryOpen(false);
-    }
-  };
-
-  const handleDeleteSelected = () => {
-    if (!selectedCompId) return;
-    const nextElements = elements.filter((c) => c.id !== selectedCompId);
-    const nextWires = wires.filter((w) => w.fromCompId !== selectedCompId && w.toCompId !== selectedCompId);
-    setElements(nextElements);
-    setWires(nextWires);
+  // ----------------------------------------------------
+  // Project Actions: New, Load, Reset
+  // ----------------------------------------------------
+  const handleStartBlankProject = () => {
+    setElements([]);
+    setWires([]);
     setSelectedCompId(null);
-    setShowInspector(false);
-    pushHistory(nextElements, nextWires);
-  };
-
-  const handleRotateSelected = () => {
-    if (!selectedCompId) return;
-    const nextElements = elements.map((c) =>
-      c.id === selectedCompId ? { ...c, rotation: (c.rotation + 90) % 360 } : c
-    );
-    setElements(nextElements);
-    pushHistory(nextElements, wires);
-  };
-
-  const handleDuplicateSelected = () => {
-    if (!selectedCompId) return;
-    const comp = elements.find((c) => c.id === selectedCompId);
-    if (!comp) return;
-    const newComp: CircuitElement = {
-      ...comp,
-      id: `c_${Date.now()}`,
-      x: comp.x + 40,
-      y: comp.y + 40
-    };
-    const nextElements = [...elements, newComp];
-    setElements(nextElements);
-    setSelectedCompId(newComp.id);
-    pushHistory(nextElements, wires);
-  };
-
-  const handleClearCircuit = () => {
-    if (window.confirm('هل أنت متأكد من رغبتك في مسح لوحة الدائرة بالكامل؟')) {
-      setElements([]);
-      setWires([]);
-      setSelectedCompId(null);
-      setWiringFrom(null);
-      pushHistory([], []);
-    }
-  };
-
-  const handleLoadPreset = (preset: (typeof PRESET_CIRCUITS)[0]) => {
-    setElements(preset.components as CircuitElement[]);
-    setWires(preset.wires as CircuitWire[]);
-    setSelectedCompId(null);
+    setSelectedWireId(null);
     setWiringFrom(null);
-    setShowPresetsModal(false);
-    pushHistory(preset.components as CircuitElement[], preset.wires as CircuitWire[]);
+    setActiveCircuit({
+      id: 'custom_project',
+      fileName: 'Untitled.cwz',
+      category: 'Basic Circuits',
+      subGroup: 'General',
+      title: 'Blank Project',
+      titleAr: 'مشروع جديد فارغ',
+      desc: 'مشروع فارغ جديد للرسم الحر وبناء وتوصيل الدوائر الإلكترونية.',
+      sheetTitle: 'Circuit Diagram',
+      instructions: {
+        title: 'Circuit Diagram — New Custom Project',
+        line1: 'Add components from the Gallery or the quick toolbar above.',
+        line2: 'Drag them to place and click on pins to connect wires.'
+      },
+      elements: [],
+      wires: []
+    });
+    setBottomTab('circuit');
+    setIsSimulating(true);
+    setIsPaused(false);
+    setShowNewProjectModal(false);
   };
 
-  // Export Circuit to JSON
-  const handleExportJSON = () => {
-    const circuitData = JSON.stringify({ elements, wires }, null, 2);
-    const blob = new Blob([circuitData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `circuit_wizard_lab_${Date.now()}.json`;
-    a.click();
+  const handleStartBreadboardProject = () => {
+    handleLoadSample(CW_SAMPLE_CIRCUITS[6]);
+    setShowNewProjectModal(false);
   };
 
-  // Import Circuit from JSON
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.elements && parsed.wires) {
-          setElements(parsed.elements);
-          setWires(parsed.wires);
-          pushHistory(parsed.elements, parsed.wires);
-        }
-      } catch {
-        alert('تعذر قراءة ملف الدائرة!');
-      }
+  const handleLoadSample = (sample: CWSampleCircuit) => {
+    setActiveCircuit(sample);
+    setElements(sample.elements);
+    setWires(sample.wires);
+    setSelectedCompId(null);
+    setSelectedWireId(null);
+    setWiringFrom(null);
+    setBottomTab('circuit');
+    setIsSimulating(true);
+    setIsPaused(false);
+    setShowNewProjectModal(false);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setRightTab(null);
+    }
+  };
+
+  // ----------------------------------------------------
+  // Component Manipulation: Add, Drag, Rotate, Delete
+  // ----------------------------------------------------
+  const handleAddComponent = (item: GalleryItem, pos?: { x: number; y: number }) => {
+    if (soundEnabled) cwAudio.playWireConnect();
+    const newId = `comp_${Date.now()}_${Math.floor(Math.random() * 100)}`;
+    const newRef = `${item.kind.slice(0, 2).toUpperCase()}${elements.length + 1}`;
+    
+    // Default coordinates or dropped coordinates
+    const targetX = pos?.x ?? (240 + (elements.length % 5) * 45);
+    const targetY = pos?.y ?? (200 + (elements.length % 4) * 40);
+
+    const newEl: CWElement = {
+      id: newId,
+      ref: newRef,
+      kind: item.kind,
+      name: item.name,
+      nameAr: item.nameAr,
+      x: targetX,
+      y: targetY,
+      rotation: 0,
+      value: item.defaultVal,
+      unit: item.unit,
+      state: true,
+      color: '#ef4444'
     };
-    reader.readAsText(file);
+    setElements((prev) => [...prev, newEl]);
+    setSelectedCompId(newId);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setRightTab(null);
+    }
   };
 
+  // Drag component on canvas
+  const handleCompMouseDown = (e: React.MouseEvent | React.TouchEvent, comp: CWElement) => {
+    e.stopPropagation();
+    setSelectedCompId(comp.id);
+    setSelectedWireId(null);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const coords = getCanvasCoords(clientX, clientY);
+    setDraggingCompId(comp.id);
+    setDragOffset({
+      x: coords.x - comp.x,
+      y: coords.y - comp.y
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const coords = getCanvasCoords(clientX, clientY);
+    setMousePos(coords);
+
+    if (draggingCompId) {
+      setElements((prev) =>
+        prev.map((el) => {
+          if (el.id === draggingCompId) {
+            const newX = Math.max(30, Math.min(710, coords.x - dragOffset.x));
+            const newY = Math.max(30, Math.min(510, coords.y - dragOffset.y));
+            return { ...el, x: newX, y: newY };
+          }
+          return el;
+        })
+      );
+    }
+  };
+
+  const handleMouseUp = () => {
+    setDraggingCompId(null);
+  };
+
+  // Toggle switch/button state
+  const handleToggleSwitch = (id: string) => {
+    if (soundEnabled) cwAudio.playSwitchClick();
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === id) {
+          return { ...el, state: !el.state };
+        }
+        return el;
+      })
+    );
+  };
+
+  // Rotate component
+  const handleRotateComponent = (id: string) => {
+    if (soundEnabled) cwAudio.playWireConnect();
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === id) {
+          const nextRot = ((el.rotation || 0) + 90) % 360;
+          return { ...el, rotation: nextRot };
+        }
+        return el;
+      })
+    );
+  };
+
+  // Delete component and all connected wires
+  const handleDeleteComponent = (id: string) => {
+    setElements((prev) => prev.filter((el) => el.id !== id));
+    setWires((prev) => prev.filter((w) => w.fromCompId !== id && w.toCompId !== id));
+    setSelectedCompId(null);
+  };
+
+  // Duplicate component
+  const handleDuplicateComponent = (comp: CWElement) => {
+    const newId = `comp_${Date.now()}`;
+    const newRef = `${comp.kind.slice(0, 2).toUpperCase()}${elements.length + 1}`;
+    const dup: CWElement = {
+      ...comp,
+      id: newId,
+      ref: newRef,
+      x: Math.min(680, comp.x + 35),
+      y: Math.min(480, comp.y + 35)
+    };
+    setElements((prev) => [...prev, dup]);
+    setSelectedCompId(newId);
+  };
+
+  // ----------------------------------------------------
+  // Interactive Wiring Tool
+  // ----------------------------------------------------
+  const handlePinClick = (e: React.MouseEvent | React.TouchEvent, comp: CWElement, pinId: string) => {
+    e.stopPropagation();
+    const pinPos = getPinAbsolutePos(comp, pinId);
+
+    if (!wiringFrom) {
+      if (soundEnabled) cwAudio.playWireConnect();
+      setWiringFrom({
+        compId: comp.id,
+        pinId: pinId,
+        x: pinPos.x,
+        y: pinPos.y
+      });
+      setSelectedCompId(null);
+      setSelectedWireId(null);
+    } else {
+      if (wiringFrom.compId === comp.id && wiringFrom.pinId === pinId) {
+        setWiringFrom(null);
+        return;
+      }
+
+      if (soundEnabled) cwAudio.playWireConnect();
+      const newWire: CWWire = {
+        id: `wire_${Date.now()}`,
+        fromCompId: wiringFrom.compId,
+        fromPinId: wiringFrom.pinId,
+        toCompId: comp.id,
+        toPinId: pinId,
+        color: wireColor
+      };
+      setWires((prev) => [...prev, newWire]);
+      setWiringFrom(null);
+    }
+  };
+
+  // Delete selected wire
+  const handleDeleteWire = (wireId: string) => {
+    setWires((prev) => prev.filter((w) => w.id !== wireId));
+    setSelectedWireId(null);
+  };
+
+  // Selected element object for inspector
   const selectedComp = useMemo(() => {
-    return elements.find((c) => c.id === selectedCompId) || null;
+    return elements.find((e) => e.id === selectedCompId) || null;
   }, [elements, selectedCompId]);
+
+  // Fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!labContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      labContainerRef.current.requestFullscreen?.().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  // HTML5 Drag and Drop handlers onto SVG Canvas
+  const handleCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    try {
+      const dataStr = e.dataTransfer.getData('application/json');
+      if (dataStr) {
+        const item: GalleryItem = JSON.parse(dataStr);
+        const coords = getCanvasCoords(e.clientX, e.clientY);
+        handleAddComponent(item, coords);
+      }
+    } catch {
+      // Fallback
+    }
+  };
 
   return (
     <div
-      className={`flex flex-col bg-slate-950 text-slate-100 font-sans select-none overflow-hidden transition-all duration-200 ${
-        isFullscreen
-          ? 'fixed inset-0 z-50 pt-safe pb-safe pl-safe pr-safe'
-          : 'h-[75vh] min-h-[500px] md:h-[calc(100vh-140px)] md:min-h-[640px] rounded-2xl border border-slate-800 shadow-2xl relative'
-      }`}
+      ref={labContainerRef}
+      dir="ltr"
+      className="w-full bg-[#808080] text-slate-900 select-none font-['Tahoma',sans-serif] text-xs flex flex-col shadow-2xl border border-[#404040] overflow-hidden rounded-md transition-all"
+      style={{
+        height: isFullscreen ? '100vh' : 'calc(100vh - 145px)',
+        minHeight: '520px',
+        maxHeight: isFullscreen ? 'none' : '880px'
+      }}
+      onClick={() => {
+        if (activeMenu) setActiveMenu(null);
+        if (wiringFrom) setWiringFrom(null);
+      }}
     >
-      {/* Top Main Toolbar - Responsive across Desktop, Tablet, and Mobile */}
-      <div className="bg-slate-900 border-b border-slate-800 px-2 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2 z-20 shrink-0">
-        {/* Left: Simulation & Mode Controls */}
-        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
-          {/* Play/Pause Button */}
-          <button
-            onClick={() => setIsRunning(!isRunning)}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-lg shrink-0 ${
-              isRunning
-                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
-            }`}
-          >
-            {isRunning ? (
-              <>
-                <Pause className="w-4 h-4 fill-current" />
-                <span className="hidden sm:inline">إيقاف مؤقت</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-current" />
-                <span className="hidden sm:inline">تشغيل المحاكاة</span>
-              </>
-            )}
-          </button>
-
-          {/* Reset button */}
-          <button
-            onClick={() => {
-              setCurrentTick(0);
-              solveCircuit();
-            }}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition shrink-0"
-            title="إعادة ضبط المحاكاة"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-
-          {/* Sound Toggle */}
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-1.5 rounded-xl transition shrink-0 ${
-              soundEnabled ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-500'
-            }`}
-            title="المؤثرات الصوتية (الصفارة والمرحل)"
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
-
-          <div className="h-5 w-px bg-slate-800 hidden sm:block shrink-0" />
-
-          {/* View Mode Toggle: Schematic vs Real-World */}
-          <div className="bg-slate-950 p-0.5 sm:p-1 rounded-xl border border-slate-800 flex items-center text-xs shrink-0">
-            <button
-              onClick={() => setViewMode('realworld')}
-              className={`px-2 sm:px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
-                viewMode === 'realworld'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="مظهر واقعي للمكونات"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline sm:inline">واقعي</span>
-            </button>
-            <button
-              onClick={() => setViewMode('schematic')}
-              className={`px-2 sm:px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
-                viewMode === 'schematic'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="مخطط رمزي قياسي"
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline sm:inline">رمزي</span>
-            </button>
+      {/* ======================================================== */}
+      {/* 1. Classic Title Bar: Circuit Wizard - [Filename]        */}
+      {/* ======================================================== */}
+      <div className="bg-gradient-to-r from-[#0a246a] via-[#0055ea] to-[#3a6ea5] text-white px-2 py-1 flex items-center justify-between shrink-0 font-bold select-none border-b border-[#002266]">
+        {/* App Icon + Title */}
+        <div className="flex items-center gap-1.5 truncate">
+          <div className="w-4 h-4 bg-white rounded-xs p-0.5 flex items-center justify-center shrink-0 shadow">
+            <svg viewBox="0 0 24 24" className="w-full h-full text-indigo-700">
+              <path fill="currentColor" d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 7l3-4 3 6 3-3 2 1" />
+            </svg>
           </div>
-
-          {/* Desktop toggles: Current flow & Voltage levels */}
-          <button
-            onClick={() => setShowCurrentFlow(!showCurrentFlow)}
-            className={`hidden md:flex px-2 py-1 rounded-lg text-xs font-semibold items-center gap-1 border transition shrink-0 ${
-              showCurrentFlow
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/40'
-                : 'bg-slate-950 text-slate-500 border-slate-800'
-            }`}
-            title="إظهار تدفق الإلكترونات والتيار"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>تدفق التيار</span>
-          </button>
-
-          <button
-            onClick={() => setShowVoltageColors(!showVoltageColors)}
-            className={`hidden md:flex px-2 py-1 rounded-lg text-xs font-semibold items-center gap-1 border transition shrink-0 ${
-              showVoltageColors
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/40'
-                : 'bg-slate-950 text-slate-500 border-slate-800'
-            }`}
-            title="تلوين الأسلاك حسب مستوى الجهد"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>مستويات الجهد</span>
-          </button>
+          <span className="text-[11px] sm:text-xs tracking-wide truncate">
+            Circuit Wizard - [{activeCircuit.fileName}]
+          </span>
         </div>
 
-        {/* Right: Actions, Fullscreen, Library & Mobile Tools Toggle */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Component Library Trigger Button */}
+        {/* Windows Window Controls */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
-            onClick={() => setLibraryOpen(!libraryOpen)}
-            className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-lg shadow-purple-900/30 transition shrink-0"
+            onClick={() => setZoomPercent(100)}
+            className="w-5 h-4 bg-[#ece9d8] hover:bg-[#ffffff] text-black text-[9px] font-bold flex items-center justify-center border border-[#7a7a7a] shadow-inner"
+            title="Reset Zoom (100%)"
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">{libraryOpen ? 'إغلاق المكتبة' : 'المكتبة'}</span>
+            _
           </button>
-
-          {/* Undo / Redo */}
-          <div className="hidden sm:flex items-center gap-0.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-            <button
-              onClick={handleUndo}
-              disabled={historyIndex <= 0}
-              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 rounded-lg transition"
-              title="تراجع"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
-              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 rounded-lg transition"
-              title="إعادة"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Presets Button */}
           <button
-            onClick={() => setShowPresetsModal(true)}
-            className="hidden md:flex px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold items-center gap-1 transition"
+            onClick={toggleFullscreen}
+            className="w-5 h-4 bg-[#ece9d8] hover:bg-[#ffffff] text-black text-[9px] font-bold flex items-center justify-center border border-[#7a7a7a] shadow-inner"
+            title={isFullscreen ? 'Restore' : 'Maximize'}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>تجارب منهجية</span>
+            {isFullscreen ? '❐' : '□'}
           </button>
-
-          {/* Student Lab Report Button */}
           <button
-            onClick={() => setShowReportModal(true)}
-            className="hidden md:flex px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold items-center gap-1 transition"
+            onClick={() => setShowNewProjectModal(true)}
+            className="w-5 h-4 bg-[#e81123] hover:bg-[#f65314] text-white text-[9px] font-bold flex items-center justify-center border border-[#7a7a7a]"
+            title="New Project (مشروع جديد)"
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>تقرير المعمل</span>
-          </button>
-
-          {/* Edit Buttons for Selected Component */}
-          {selectedComp && (
-            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={handleRotateSelected}
-                className="p-1 hover:bg-slate-800 text-slate-300 rounded-lg transition"
-                title="تدوير 90 درجة"
-              >
-                <RotateCw className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setShowInspector(!showInspector)}
-                className={`p-1 rounded-lg transition ${showInspector ? 'bg-purple-600 text-white' : 'hover:bg-slate-800 text-purple-400'}`}
-                title="خصائص العنصر"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={handleDeleteSelected}
-                className="p-1 hover:bg-red-950/60 text-red-400 rounded-lg transition"
-                title="حذف العنصر"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Zoom controls (Desktop) */}
-          <div className="hidden lg:flex items-center gap-0.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-mono">
-            <button
-              onClick={() => setScale((s) => Math.max(0.4, Number((s - 0.1).toFixed(1))))}
-              className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded"
-            >
-              -
-            </button>
-            <span className="px-1 text-[11px] text-slate-400 font-bold">{Math.round(scale * 100)}%</span>
-            <button
-              onClick={() => setScale((s) => Math.min(2.5, Number((s + 0.1).toFixed(1))))}
-              className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded"
-            >
-              +
-            </button>
-          </div>
-
-          {/* Mobile Tools Dropdown Button */}
-          <button
-            onClick={() => setShowMobileTools(!showMobileTools)}
-            className="md:hidden p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
-            title="المزيد من الأدوات والتجارب"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
-
-          {/* Fullscreen Toggle Button */}
-          <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className={`p-1.5 rounded-xl transition ${
-              isFullscreen
-                ? 'bg-purple-600 text-white shadow-lg'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-            }`}
-            title={isFullscreen ? 'تصغير مساحة العمل' : 'ملء الشاشة بالكامل (مساحة واسعة للرسم والتوصيل)'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            ✕
           </button>
         </div>
       </div>
 
-      {/* Mobile Tools Drawer (when open on screens < md) */}
-      {showMobileTools && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 p-2.5 flex flex-wrap items-center gap-2 text-xs z-20 animate-fadeIn">
+      {/* ======================================================== */}
+      {/* 2. Menu Bar: File  Edit  View  Project  Window  Help     */}
+      {/* ======================================================== */}
+      <div className="bg-[#ece9d8] border-b border-[#aca899] px-2 py-0.5 flex items-center gap-0.5 text-[11px] text-slate-800 shrink-0 relative overflow-x-auto no-scrollbar">
+        {/* Menu Item: File */}
+        <div className="relative">
           <button
-            onClick={() => {
-              setShowPresetsModal(true);
-              setShowMobileTools(false);
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenu(activeMenu === 'file' ? null : 'file');
             }}
-            className="px-2.5 py-1.5 bg-indigo-600/30 text-indigo-300 rounded-lg font-bold flex items-center gap-1"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>تجارب منهجية</span>
-          </button>
-          <button
-            onClick={() => {
-              setShowReportModal(true);
-              setShowMobileTools(false);
-            }}
-            className="px-2.5 py-1.5 bg-emerald-600/30 text-emerald-300 rounded-lg font-bold flex items-center gap-1"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>تقرير المعمل</span>
-          </button>
-          <button
-            onClick={() => setShowCurrentFlow(!showCurrentFlow)}
-            className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 border ${
-              showCurrentFlow ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-950 text-slate-400 border-slate-800'
+            className={`px-2 py-0.5 rounded hover:bg-[#316ac5] hover:text-white transition-colors ${
+              activeMenu === 'file' ? 'bg-[#316ac5] text-white' : ''
             }`}
           >
-            <Zap className="w-3.5 h-3.5" />
-            <span>تدفق التيار</span>
+            <span className="underline">F</span>ile
           </button>
-          <button
-            onClick={() => setShowVoltageColors(!showVoltageColors)}
-            className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 border ${
-              showVoltageColors ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-950 text-slate-400 border-slate-800'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>تلوين الجهد</span>
-          </button>
-          <button
-            onClick={handleUndo}
-            disabled={historyIndex <= 0}
-            className="px-2.5 py-1.5 bg-slate-800 text-slate-300 rounded-lg font-bold flex items-center gap-1 disabled:opacity-40"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>تراجع</span>
-          </button>
-          <button
-            onClick={handleClearCircuit}
-            className="px-2.5 py-1.5 bg-red-950/60 text-red-300 rounded-lg font-bold flex items-center gap-1 mr-auto"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>مسح الدائرة</span>
-          </button>
-        </div>
-      )}
-
-      {/* Warning/Alert Banner if Short Circuit or Overload */}
-      {circuitAlert && (
-        <div className="bg-red-600/90 text-white px-3 sm:px-4 py-1.5 text-xs font-bold flex items-center justify-between gap-2 shadow-lg z-20 animate-pulse">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{circuitAlert.message}</span>
-          </div>
-          <button onClick={() => setCircuitAlert(null)} className="text-white/80 hover:text-white">
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Main Workspace: Library Drawer (Right in RTL) + Canvas + Inspector Drawer */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Backdrop for Library on Mobile & Tablet */}
-        {libraryOpen && (
-          <div
-            className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-30 transition-opacity"
-            onClick={() => setLibraryOpen(false)}
-          />
-        )}
-
-        {/* Component Library: Docked side column on Desktop (lg), Bottom Sheet on Mobile & Tablet */}
-        {libraryOpen && (
-          <div className="fixed inset-x-0 bottom-0 max-h-[82vh] lg:static lg:w-80 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col shrink-0 z-40 rounded-t-3xl lg:rounded-none shadow-2xl transition-all">
-            {/* Drag Handle Notch for mobile */}
-            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto my-2 lg:hidden shrink-0" />
-
-            {/* Library Header */}
-            <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-purple-400" />
-                <h3 className="font-bold text-xs text-white">مكتبة مكونات Circuit Wizard</h3>
-              </div>
-              <button
-                onClick={() => setLibraryOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
-                title="إغلاق المكتبة"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Search Input */}
-            <div className="p-2 border-b border-slate-800">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="ابحث عن عنصر (مقاومة، LED، محرك...)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-8 pl-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                />
-              </div>
-            </div>
-
-            {/* Category Tabs */}
-            <div className="flex items-center gap-1 p-1.5 border-b border-slate-800 overflow-x-auto text-[11px] no-scrollbar">
-              {[
-                { id: 'power', label: 'مصادر القدرة' },
-                { id: 'passive', label: 'سلبية' },
-                { id: 'discrete', label: 'أشباه موصلات' },
-                { id: 'input', label: 'إدخال' },
-                { id: 'logic', label: 'منطقية' },
-                { id: 'ic', label: 'دوائر متكاملة' },
-                { id: 'output', label: 'إخراج ومشغلات' },
-                { id: 'instruments', label: 'أجهزة قياس' }
-              ].map((cat) => (
+          {activeMenu === 'file' && (
+            <div className="absolute left-0 top-full mt-0.5 w-52 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
+              <div className="py-0.5">
                 <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id as ComponentCategory)}
-                  className={`px-2 py-1 rounded-lg font-bold shrink-0 transition ${
-                    selectedCategory === cat.id
-                      ? 'bg-purple-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  }`}
+                  onClick={() => {
+                    setShowNewProjectModal(true);
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
                 >
-                  {cat.label}
+                  <span className="font-bold">New Project (مشروع جديد)...</span>
+                  <span className="text-[10px] text-slate-400">Ctrl+N</span>
                 </button>
-              ))}
-            </div>
-
-            {/* Components Grid */}
-            <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-              {/* Category: Power */}
-              {selectedCategory === 'power' && (
-                <>
-                  <ComponentCard
-                    name="9V Battery"
-                    nameAr="بطارية 9V"
-                    icon="🔋"
-                    onClick={() => handleAddComponent('battery', '9V Battery', 'بطارية 9V', 'power', 9, 'V')}
-                  />
-                  <ComponentCard
-                    name="1.5V AA Battery"
-                    nameAr="بطارية AA 1.5V"
-                    icon="🔋"
-                    onClick={() => handleAddComponent('battery_aa', '1.5V AA Battery', 'بطارية AA 1.5V', 'power', 1.5, 'V')}
-                  />
-                  <ComponentCard
-                    name="18650 Li-ion Cell"
-                    nameAr="بطارية ليثيوم 18650"
-                    icon="🔋"
-                    onClick={() => handleAddComponent('battery_18650', '18650 Li-ion (3.7V)', 'بطارية ليثيوم 18650', 'power', 3.7, 'V')}
-                  />
-                  <ComponentCard
-                    name="12V Lead-Acid Battery"
-                    nameAr="بطارية رصاصية 12V"
-                    icon="🔋"
-                    onClick={() => handleAddComponent('battery_lead_acid', '12V Lead Acid', 'بطارية رصاصية 12V', 'power', 12, 'V')}
-                  />
-                  <ComponentCard
-                    name="Solar Cell Panel"
-                    nameAr="خلية شمسية (Solar)"
-                    icon="☀️"
-                    onClick={() => handleAddComponent('solar_cell', 'Solar Cell 5V', 'خلية شمسية 5V', 'power', 5, 'V')}
-                  />
-                  <ComponentCard
-                    name="Adjustable DC Supply"
-                    nameAr="مصدر DC متغير (0-30V)"
-                    icon="⚡"
-                    onClick={() => handleAddComponent('dc_source', 'DC Power Supply', 'مصدر قدرة DC', 'power', 12, 'V')}
-                  />
-                  <ComponentCard
-                    name="AC Voltage Source"
-                    nameAr="مصدر جهد AC متناوب"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('ac_source', 'AC Source 12V', 'مصدر AC 12V', 'power', 12, 'V')}
-                  />
-                  <ComponentCard
-                    name="Ground (0V)"
-                    nameAr="تأريض Ground (0V)"
-                    icon="⏚"
-                    onClick={() => handleAddComponent('ground', 'Ground', 'تأريض', 'power', 0, 'V')}
-                  />
-                  <ComponentCard
-                    name="VCC (+5V)"
-                    nameAr="خط تغذية VCC (+5V)"
-                    icon="🔺"
-                    onClick={() => handleAddComponent('vcc', 'VCC +5V', 'تغذية VCC 5V', 'power', 5, 'V')}
-                  />
-                </>
-              )}
-
-              {/* Category: Passive */}
-              {selectedCategory === 'passive' && (
-                <>
-                  <ComponentCard
-                    name="Resistor 100Ω"
-                    nameAr="مقاومة 100Ω"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 100Ω', 'مقاومة 100Ω', 'passive', 100, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Resistor 220Ω"
-                    nameAr="مقاومة 220Ω"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 220Ω', 'مقاومة 220Ω', 'passive', 220, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Resistor 330Ω"
-                    nameAr="مقاومة 330Ω"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 330Ω', 'مقاومة 330Ω', 'passive', 330, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Resistor 470Ω"
-                    nameAr="مقاومة 470Ω"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 470Ω', 'مقاومة 470Ω', 'passive', 470, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Resistor 1kΩ"
-                    nameAr="مقاومة 1kΩ"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 1kΩ', 'مقاومة 1kΩ', 'passive', 1000, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Resistor 10kΩ"
-                    nameAr="مقاومة 10kΩ"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 10kΩ', 'مقاومة 10kΩ', 'passive', 10000, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Resistor 100kΩ"
-                    nameAr="مقاومة 100kΩ"
-                    icon="〰️"
-                    onClick={() => handleAddComponent('resistor', 'Resistor 100kΩ', 'مقاومة 100kΩ', 'passive', 100000, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Ceramic Capacitor 100nF"
-                    nameAr="مكثف سيراميكي 100nF (104)"
-                    icon="⫨"
-                    onClick={() => handleAddComponent('capacitor', 'Ceramic Cap 100nF', 'مكثف سيراميكي 100nF', 'passive', 0.0000001, 'F')}
-                  />
-                  <ComponentCard
-                    name="Electrolytic Capacitor 100µF"
-                    nameAr="مكثف إلكتروليتي 100µF (قطبي)"
-                    icon="⫨"
-                    onClick={() => handleAddComponent('capacitor_electrolytic', 'Electrolytic Cap 100µF', 'مكثف إلكتروليتي 100µF', 'passive', 0.0001, 'F')}
-                  />
-                  <ComponentCard
-                    name="Potentiometer 10kΩ"
-                    nameAr="مقاومة متغيرة Potentiometer"
-                    icon="🎚️"
-                    onClick={() => handleAddComponent('potentiometer', 'Potentiometer 10kΩ', 'مقاومة متغيرة 10kΩ', 'passive', 10000, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Trimmer Pot 10kΩ"
-                    nameAr="مقاومة ضبط Trimmer"
-                    icon="⚙️"
-                    onClick={() => handleAddComponent('trimmer', 'Trimmer 10kΩ', 'مقاومة ضبط 10kΩ', 'passive', 10000, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Inductor Coil 10mH"
-                    nameAr="ملف حثي (Inductor) 10mH"
-                    icon="➰"
-                    onClick={() => handleAddComponent('inductor', 'Inductor 10mH', 'ملف حثي 10mH', 'passive', 0.01, 'H')}
-                  />
-                  <ComponentCard
-                    name="Transformer"
-                    nameAr="محول كهربائي Transformer"
-                    icon="⚡"
-                    onClick={() => handleAddComponent('transformer', 'Transformer', 'محول كهربائي', 'passive', 10, 'ratio')}
-                  />
-                </>
-              )}
-
-              {/* Category: Discrete Semiconductors */}
-              {selectedCategory === 'discrete' && (
-                <>
-                  <ComponentCard
-                    name="Red LED"
-                    nameAr="دايود LED أحمر"
-                    icon="🔴"
-                    onClick={() => handleAddComponent('led', 'Red LED', 'LED أحمر', 'discrete', 2.1, 'V')}
-                  />
-                  <ComponentCard
-                    name="Green LED"
-                    nameAr="دايود LED أخضر"
-                    icon="🟢"
-                    onClick={() => handleAddComponent('led', 'Green LED', 'LED أخضر', 'discrete', 2.2, 'V')}
-                  />
-                  <ComponentCard
-                    name="Blue LED"
-                    nameAr="دايود LED أزرق"
-                    icon="🔵"
-                    onClick={() => handleAddComponent('led', 'Blue LED', 'LED أزرق', 'discrete', 3.2, 'V')}
-                  />
-                  <ComponentCard
-                    name="Yellow LED"
-                    nameAr="دايود LED أصفر"
-                    icon="🟡"
-                    onClick={() => handleAddComponent('led', 'Yellow LED', 'LED أصفر', 'discrete', 2.1, 'V')}
-                  />
-                  <ComponentCard
-                    name="Diode 1N4007"
-                    nameAr="دايود سيليكون 1N4007"
-                    icon="▲"
-                    onClick={() => handleAddComponent('diode', 'Diode 1N4007', 'دايود 1N4007', 'discrete', 0.7, 'V')}
-                  />
-                  <ComponentCard
-                    name="Zener Diode 5.1V"
-                    nameAr="دايود زينر Zener 5.1V"
-                    icon="⚡"
-                    onClick={() => handleAddComponent('zener', 'Zener Diode 5.1V', 'دايود زينر 5.1V', 'discrete', 5.1, 'V')}
-                  />
-                  <ComponentCard
-                    name="NPN Transistor BC547"
-                    nameAr="ترانزستور NPN (BC547 / 2N2222)"
-                    icon="🔀"
-                    onClick={() => handleAddComponent('transistor_npn', 'NPN BC547', 'ترانزستور BC547', 'discrete', 100, 'hfe')}
-                  />
-                  <ComponentCard
-                    name="PNP Transistor BC557"
-                    nameAr="ترانزستور PNP (BC557)"
-                    icon="🔀"
-                    onClick={() => handleAddComponent('transistor_pnp', 'PNP BC557', 'ترانزستور BC557', 'discrete', 100, 'hfe')}
-                  />
-                  <ComponentCard
-                    name="N-Channel MOSFET IRFZ44N"
-                    nameAr="ترانزستور موسفت N-MOSFET"
-                    icon="⚡"
-                    onClick={() => handleAddComponent('mosfet_n', 'MOSFET IRFZ44N', 'موسفت IRFZ44N', 'discrete', 10, 'A')}
-                  />
-                </>
-              )}
-
-              {/* Category: Input */}
-              {selectedCategory === 'input' && (
-                <>
-                  <ComponentCard
-                    name="SPST Toggle Switch"
-                    nameAr="مفتاح تشغيل/إيقاف SPST"
-                    icon="🔌"
-                    onClick={() => handleAddComponent('switch_spst', 'SPST Switch', 'مفتاح SPST', 'input', 0, '')}
-                  />
-                  <ComponentCard
-                    name="Push Button (NO)"
-                    nameAr="زر ضغط مفتوح (Normally Open)"
-                    icon="🔘"
-                    onClick={() => handleAddComponent('push_button', 'Push Button (NO)', 'زر ضغط NO', 'input', 0, '')}
-                  />
-                  <ComponentCard
-                    name="Push Button (NC)"
-                    nameAr="زر ضغط مغلق (Normally Closed)"
-                    icon="🔴"
-                    onClick={() => handleAddComponent('push_button_nc', 'Push Button (NC)', 'زر ضغط NC', 'input', 0, '')}
-                  />
-                  <ComponentCard
-                    name="SPDT Switch"
-                    nameAr="مفتاح تحويل SPDT"
-                    icon="🔀"
-                    onClick={() => handleAddComponent('switch_spdt', 'SPDT Switch', 'مفتاح SPDT', 'input', 0, '')}
-                  />
-                  <ComponentCard
-                    name="LDR Light Sensor"
-                    nameAr="مقاومة ضوئية LDR"
-                    icon="☀️"
-                    onClick={() => handleAddComponent('ldr', 'LDR Sensor', 'حساس ضوء LDR', 'input', 5000, 'Ω')}
-                  />
-                  <ComponentCard
-                    name="Thermistor NTC"
-                    nameAr="مقاومة حرارية NTC"
-                    icon="🌡️"
-                    onClick={() => handleAddComponent('thermistor', 'Thermistor NTC', 'حساس حرارة NTC', 'input', 10000, 'Ω')}
-                  />
-                </>
-              )}
-
-              {/* Category: Logic Gates */}
-              {selectedCategory === 'logic' && (
-                <>
-                  <ComponentCard
-                    name="AND Gate 7408"
-                    nameAr="بوابة AND منطقية"
-                    icon="⩓"
-                    onClick={() => handleAddComponent('gate_and', 'AND Gate', 'بوابة AND', 'logic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="OR Gate 7432"
-                    nameAr="بوابة OR منطقية"
-                    icon="⩔"
-                    onClick={() => handleAddComponent('gate_or', 'OR Gate', 'بوابة OR', 'logic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="NOT Gate (Inverter)"
-                    nameAr="بوابة NOT (عاكس منطقي)"
-                    icon="¬"
-                    onClick={() => handleAddComponent('gate_not', 'NOT Gate', 'بوابة NOT', 'logic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="NAND Gate 7400"
-                    nameAr="بوابة NAND منطقية"
-                    icon="⊼"
-                    onClick={() => handleAddComponent('gate_nand', 'NAND Gate', 'بوابة NAND', 'logic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="NOR Gate 7402"
-                    nameAr="بوابة NOR منطقية"
-                    icon="⊽"
-                    onClick={() => handleAddComponent('gate_nor', 'NOR Gate', 'بوابة NOR', 'logic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="XOR Gate 7486"
-                    nameAr="بوابة XOR منطقية"
-                    icon="⊕"
-                    onClick={() => handleAddComponent('gate_xor', 'XOR Gate', 'بوابة XOR', 'logic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="XNOR Gate"
-                    nameAr="بوابة XNOR منطقية"
-                    icon="⊙"
-                    onClick={() => handleAddComponent('gate_xnor', 'XNOR Gate', 'بوابة XNOR', 'logic', 0, '')}
-                  />
-                </>
-              )}
-
-              {/* Category: Integrated Circuits (IC) */}
-              {selectedCategory === 'ic' && (
-                <>
-                  <ComponentCard
-                    name="NE555 Precision Timer"
-                    nameAr="مؤقت دقيق NE555 (DIP-8)"
-                    icon="⏱️"
-                    onClick={() => handleAddComponent('ic_555', 'NE555 Timer', 'مؤقت 555', 'ic', 0, '')}
-                  />
-                  <ComponentCard
-                    name="Op-Amp LM741 / LM358"
-                    nameAr="مكبر عمليات Op-Amp LM741"
-                    icon="🔺"
-                    onClick={() => handleAddComponent('opamp', 'Op-Amp LM741', 'مكبر LM741', 'ic', 100000, 'gain')}
-                  />
-                </>
-              )}
-
-              {/* Category: Output Components */}
-              {selectedCategory === 'output' && (
-                <>
-                  <ComponentCard
-                    name="DC Motor with Shaft"
-                    nameAr="محرك تيار مستمر DC Motor"
-                    icon="⚙️"
-                    onClick={() => handleAddComponent('dc_motor', 'DC Motor', 'محرك DC', 'output', 12, 'V')}
-                  />
-                  <ComponentCard
-                    name="Filament Lamp Bulb"
-                    nameAr="مصباح كهربائي متوهج"
-                    icon="💡"
-                    onClick={() => handleAddComponent('lamp', 'Lamp', 'مصباح كهربائي', 'output', 9, 'V')}
-                  />
-                  <ComponentCard
-                    name="Piezo Buzzer (Sound)"
-                    nameAr="صفارة إنذار كهرضغطية (Buzzer)"
-                    icon="🔊"
-                    onClick={() => handleAddComponent('buzzer', 'Buzzer', 'صفارة إنذار', 'output', 5, 'V')}
-                  />
-                  <ComponentCard
-                    name="SPDT Relay 12V"
-                    nameAr="مرحل كهرومغناطيسي Relay"
-                    icon="🧲"
-                    onClick={() => handleAddComponent('relay', 'Relay 12V', 'مرحل كهرومغناطيسي', 'output', 12, 'V')}
-                  />
-                  <ComponentCard
-                    name="7-Segment Display"
-                    nameAr="شاشة 7-Segment رقمية"
-                    icon="🔢"
-                    onClick={() => handleAddComponent('seven_segment', '7-Segment', 'شاشة 7 قطع', 'output', 5, 'V')}
-                  />
-                </>
-              )}
-
-              {/* Category: Instruments */}
-              {selectedCategory === 'instruments' && (
-                <>
-                  <ComponentCard
-                    name="Digital Voltmeter"
-                    nameAr="فولتميتر رقمي (DC Voltmeter)"
-                    icon="📟"
-                    onClick={() => handleAddComponent('voltmeter', 'Voltmeter', 'فولتميتر رقمي', 'instruments', 0, 'V')}
-                  />
-                  <ComponentCard
-                    name="Digital Ammeter"
-                    nameAr="أميتر رقمي (DC Ammeter)"
-                    icon="🎛️"
-                    onClick={() => handleAddComponent('ammeter', 'Ammeter', 'أميتر رقمي', 'instruments', 0, 'A')}
-                  />
-                  <ComponentCard
-                    name="Mini Oscilloscope"
-                    nameAr="راسم إشارة مصغر (Scope)"
-                    icon="📈"
-                    onClick={() => handleAddComponent('oscilloscope', 'Oscilloscope', 'راسم إشارة', 'instruments', 0, '')}
-                  />
-                  <ComponentCard
-                    name="Logic State Probe"
-                    nameAr="مسبار منطقي (Logic Probe)"
-                    icon="💡"
-                    onClick={() => handleAddComponent('logic_probe', 'Logic Probe', 'مسبار منطقي', 'instruments', 0, '')}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Center: Circuit Interactive Drawing Canvas */}
-        <div
-          className="flex-1 relative bg-slate-950 overflow-hidden cursor-crosshair touch-none select-none"
-          onPointerDown={handlePointerDownCanvas}
-          onPointerMove={handlePointerMoveCanvas}
-          onPointerUp={handlePointerUpCanvas}
-          onTouchStart={handleCanvasTouchStart}
-          onTouchMove={handleCanvasTouchMove}
-          onTouchEnd={handleCanvasTouchEnd}
-        >
-          {/* Floating Mobile Action Button for Component Library */}
-          <button
-            onClick={() => setLibraryOpen(true)}
-            className="lg:hidden absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-500 text-white shadow-2xl flex items-center justify-center active:scale-90 transition border-2 border-purple-400/50"
-            title="مكتبة المكونات"
-            aria-label="مكتبة المكونات"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-
-          {/* Active Wiring HUD Banner */}
-          {wiringFrom && (
-            <div className="absolute top-3 left-3 right-3 sm:left-auto sm:right-3 bg-purple-900/90 border border-purple-400 p-2 rounded-xl text-xs text-white flex items-center justify-between gap-2 shadow-2xl z-20 animate-pulse">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
-                <span>جاري تمديد سلك... انقر على الطرف الآخر لربطه</span>
+                <button
+                  onClick={() => {
+                    setRightTab('assistant');
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span>Open Sample Circuits...</span>
+                  <span className="text-[10px] text-slate-400">Ctrl+O</span>
+                </button>
               </div>
+              <div className="py-0.5">
+                <button
+                  onClick={() => {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ activeCircuit, elements, wires }));
+                    const dl = document.createElement('a');
+                    dl.setAttribute("href", dataStr);
+                    dl.setAttribute("download", activeCircuit.fileName);
+                    dl.click();
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span>Save .cwz File</span>
+                  <span className="text-[10px] text-slate-400">Ctrl+S</span>
+                </button>
+                <button
+                  onClick={() => {
+                    window.print();
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span>Print Sheet...</span>
+                  <span className="text-[10px] text-slate-400">Ctrl+P</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Menu Item: Edit */}
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenu(activeMenu === 'edit' ? null : 'edit');
+            }}
+            className={`px-2 py-0.5 rounded hover:bg-[#316ac5] hover:text-white transition-colors ${
+              activeMenu === 'edit' ? 'bg-[#316ac5] text-white' : ''
+            }`}
+          >
+            <span className="underline">E</span>dit
+          </button>
+          {activeMenu === 'edit' && (
+            <div className="absolute left-0 top-full mt-0.5 w-48 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setWiringFrom(null);
+                onClick={() => {
+                  handleLoadSample(CW_SAMPLE_CIRCUITS[0]);
+                  setActiveMenu(null);
                 }}
-                className="px-2 py-0.5 bg-purple-950 hover:bg-purple-800 rounded text-[11px] font-bold shrink-0"
+                className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
               >
-                إلغاء
+                <span>Reset to Bulb Circuit</span>
+                <span className="text-[10px] text-slate-400">Ctrl+Z</span>
+              </button>
+              {selectedCompId && (
+                <button
+                  onClick={() => {
+                    handleDeleteComponent(selectedCompId);
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between text-rose-600"
+                >
+                  <span>Delete Selected</span>
+                  <span className="text-[10px] text-slate-400">Del</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Menu Item: View */}
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenu(activeMenu === 'view' ? null : 'view');
+            }}
+            className={`px-2 py-0.5 rounded hover:bg-[#316ac5] hover:text-white transition-colors ${
+              activeMenu === 'view' ? 'bg-[#316ac5] text-white' : ''
+            }`}
+          >
+            <span className="underline">V</span>iew
+          </button>
+          {activeMenu === 'view' && (
+            <div className="absolute left-0 top-full mt-0.5 w-48 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800">
+              <button onClick={() => { setMode('realworld'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Real World (المكونات الواقعية)</span> {mode === 'realworld' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+              </button>
+              <button onClick={() => { setMode('normal'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Normal (المخطط الرمزي)</span> {mode === 'normal' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+              </button>
+              <button onClick={() => { setMode('current_flow'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Current Flow (سريان التيار)</span> {mode === 'current_flow' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+              </button>
+              <button onClick={() => { setMode('voltage_levels'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Voltage Levels (مستويات الجهد)</span> {mode === 'voltage_levels' && <Check className="w-3.5 h-3.5 text-blue-600" />}
               </button>
             </div>
           )}
+        </div>
 
-          {/* Engineering Canvas Grid SVG */}
-          <svg
-            ref={canvasRef}
-            className="w-full h-full absolute inset-0"
-            viewBox="0 0 1600 1200"
+        {/* Menu Item: Project */}
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenu(activeMenu === 'project' ? null : 'project');
+            }}
+            className={`px-2 py-0.5 rounded hover:bg-[#316ac5] hover:text-white transition-colors ${
+              activeMenu === 'project' ? 'bg-[#316ac5] text-white' : ''
+            }`}
           >
-            <defs>
-              <pattern
-                id="circuit-grid"
-                width="20"
-                height="20"
-                patternUnits="userSpaceOnUse"
-              >
-                <circle cx="2" cy="2" r="0.75" fill="#334155" opacity="0.6" />
-              </pattern>
-            </defs>
+            <span className="underline">P</span>roject
+          </button>
+          {activeMenu === 'project' && (
+            <div className="absolute left-0 top-full mt-0.5 w-48 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800">
+              <button onClick={() => { setIsSimulating(true); setIsPaused(false); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Run Simulation</span> <span className="text-[10px] text-slate-400">F9</span>
+              </button>
+              <button onClick={() => { setIsPaused(!isPaused); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Pause</span> <span className="text-[10px] text-slate-400">❚❚</span>
+              </button>
+              <button onClick={() => { setIsSimulating(false); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                <span>Stop</span> <span className="text-[10px] text-slate-400">■</span>
+              </button>
+              <button onClick={() => { setBottomTab('bom'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white">
+                <span>Bill of Materials...</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
-            {/* Grid Background */}
-            <rect
-              x="-2000"
-              y="-2000"
-              width="6000"
-              height="6000"
-              fill="url(#circuit-grid)"
+      {/* ======================================================== */}
+      {/* 3. Main Classic Toolbar: New, Run, Pause, Wire, Zoom      */}
+      {/* ======================================================== */}
+      <div className="bg-[#ece9d8] border-b border-[#aca899] px-2 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
+        {/* New Project Button ("مشروع جديد") */}
+        <button
+          onClick={() => setShowNewProjectModal(true)}
+          className="px-2 py-0.5 bg-white hover:bg-blue-50 border border-[#aca899] rounded-xs font-bold flex items-center gap-1 text-slate-900 shadow-xs transition shrink-0 active:translate-y-0.5"
+          title="New Project (مشروع جديد)"
+        >
+          <FilePlus className="w-3.5 h-3.5 text-blue-600" />
+          <span className="text-[11px]">New</span>
+        </button>
+
+        {/* Open Sample Circuits */}
+        <button
+          onClick={() => setRightTab('assistant')}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
+          title="Open Sample Circuits"
+        >
+          <FolderOpen className="w-4 h-4 text-amber-600" />
+        </button>
+
+        {/* Save */}
+        <button
+          onClick={() => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ activeCircuit, elements, wires }));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", activeCircuit.fileName);
+            dl.click();
+          }}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
+          title="Save Circuit (.cwz)"
+        >
+          <Save className="w-4 h-4 text-blue-600" />
+        </button>
+
+        <div className="h-5 w-px bg-[#aca899] mx-0.5 sm:mx-1 shrink-0" />
+
+        {/* Simulation Controls: Run (Green ▶), Pause (❚❚), Stop (■) */}
+        <div className="flex items-center gap-0.5 bg-[#dfdfdf] p-0.5 rounded-xs border border-[#aca899] shrink-0">
+          <button
+            onClick={() => {
+              setIsSimulating(true);
+              setIsPaused(false);
+            }}
+            className={`px-2 py-0.5 flex items-center gap-1 font-bold rounded-xs text-xs transition ${
+              isSimulating && !isPaused
+                ? 'bg-emerald-600 text-white shadow-inner'
+                : 'hover:bg-emerald-100 text-emerald-800'
+            }`}
+            title="Run Simulation (F9)"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden xs:inline sm:inline">Run</span>
+          </button>
+          <button
+            onClick={() => setIsPaused(!isPaused)}
+            className={`p-1 rounded-xs transition ${
+              isPaused ? 'bg-amber-500 text-white shadow-inner' : 'hover:bg-amber-100 text-slate-700'
+            }`}
+            title="Pause Simulation"
+          >
+            <Pause className="w-3.5 h-3.5 fill-current" />
+          </button>
+          <button
+            onClick={() => {
+              setIsSimulating(false);
+              setIsPaused(false);
+            }}
+            className={`p-1 rounded-xs transition ${
+              !isSimulating ? 'bg-rose-600 text-white shadow-inner' : 'hover:bg-rose-100 text-slate-700'
+            }`}
+            title="Stop Simulation"
+          >
+            <div className="w-2.5 h-2.5 bg-rose-600 border border-rose-800 rounded-2xs" />
+          </button>
+        </div>
+
+        <div className="h-5 w-px bg-[#aca899] mx-0.5 sm:mx-1 shrink-0" />
+
+        {/* Wire Color Picker */}
+        <div className="flex items-center gap-1 bg-white border border-[#aca899] px-1 py-0.5 rounded-xs shrink-0">
+          <span className="text-[10px] text-slate-600 font-bold hidden sm:inline">Wire:</span>
+          {[
+            { c: '#dc2626', title: 'Red (موجب)' },
+            { c: '#111827', title: 'Black (سالب)' },
+            { c: '#2563eb', title: 'Blue (إشارة)' },
+            { c: '#16a34a', title: 'Green (توصيل)' }
+          ].map(({ c, title }) => (
+            <button
+              key={c}
+              onClick={() => setWireColor(c)}
+              className={`w-3.5 h-3.5 rounded-full border transition ${
+                wireColor === c ? 'ring-2 ring-blue-500 scale-110' : 'border-slate-300'
+              }`}
+              style={{ backgroundColor: c }}
+              title={title}
             />
+          ))}
+        </div>
 
-            {/* Scaled & Panned Group */}
-            <g transform={`translate(${pan.x}, ${pan.y}) scale(${scale})`}>
-              {/* Render All Wires */}
+        {/* Toggle Grid */}
+        <button
+          onClick={() => setShowGrid(!showGrid)}
+          className={`p-1 rounded-xs border transition shrink-0 ${
+            showGrid ? 'bg-blue-100 text-blue-700 border-blue-400' : 'hover:bg-white border-transparent text-slate-600'
+          }`}
+          title="Toggle Grid Dots"
+        >
+          <Grid className="w-4 h-4" />
+        </button>
+
+        {/* Zoom Controls */}
+        <button
+          onClick={() => setZoomPercent((z) => Math.min(z + 10, 150))}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
+          title="Zoom In"
+        >
+          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
+        </button>
+        <button
+          onClick={() => setZoomPercent((z) => Math.max(z - 10, 60))}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
+          title="Zoom Out"
+        >
+          <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 font-bold flex items-center justify-center text-slate-800 leading-none">−</span>
+        </button>
+
+        <div className="h-5 w-px bg-[#aca899] mx-0.5 sm:mx-1 shrink-0" />
+
+        {/* Gallery Button ("لوحة المكونات") */}
+        <button
+          onClick={() => setRightTab(rightTab === 'gallery' ? null : 'gallery')}
+          className={`px-2 py-0.5 flex items-center gap-1 rounded-xs border transition shrink-0 font-bold ${
+            rightTab === 'gallery'
+              ? 'bg-[#316ac5] text-white border-[#002266]'
+              : 'bg-white hover:bg-slate-100 border-[#aca899] text-blue-700'
+          }`}
+          title="Component Gallery (لوحة المكونات)"
+        >
+          <Cpu className="w-3.5 h-3.5" />
+          <span>Gallery</span>
+        </button>
+
+        {/* Assistant Button */}
+        <button
+          onClick={() => setRightTab(rightTab === 'assistant' ? null : 'assistant')}
+          className={`px-2 py-0.5 flex items-center gap-1 rounded-xs border transition shrink-0 font-medium ${
+            rightTab === 'assistant'
+              ? 'bg-[#316ac5] text-white border-[#002266]'
+              : 'bg-[#ece9d8] hover:bg-white border-[#aca899] text-slate-800'
+          }`}
+          title="Sample Circuits Assistant"
+        >
+          <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+          <span>Assistant</span>
+        </button>
+
+        {/* Sound Toggle */}
+        <button
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            soundEnabled ? 'text-indigo-700' : 'text-slate-400'
+          }`}
+          title="Toggle Hardware Sounds"
+        >
+          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 4. Quick Component Bar (Quick Palette)                   */}
+      {/* ======================================================== */}
+      <div className="bg-[#f0ede4] border-b border-[#aca899] px-2 py-0.5 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 text-[10px]">
+        <span className="font-bold text-slate-600 uppercase tracking-tight shrink-0 hidden sm:inline">Add:</span>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[0])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + 1.5V AA
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[1])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + 9V Bat
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[3])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + Breadboard
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[4])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + Switch
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[11])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + Lamp
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[7])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + 1kΩ
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[9])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + LED
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[12])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + Buzzer
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[13])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + Motor
+        </button>
+        <button
+          onClick={() => handleAddComponent(GALLERY_ITEMS[14])}
+          className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-300 rounded-xs font-semibold text-slate-800 shrink-0"
+        >
+          + Voltmeter
+        </button>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 5. Active Component Inspector Bar                        */}
+      {/* ======================================================== */}
+      {selectedComp && (
+        <div className="bg-[#fdfcf9] border-b border-[#b0aca0] px-2.5 py-1 flex items-center justify-between text-xs overflow-x-auto no-scrollbar shrink-0 shadow-inner">
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="font-bold text-blue-800 font-mono">{selectedComp.ref}:</span>
+            <span className="font-bold text-slate-800">{selectedComp.name}</span>
+
+            {/* Value Tuning (numeric input) */}
+            {(selectedComp.kind === 'resistor' || selectedComp.kind === 'battery_aa' || selectedComp.kind === 'battery_9v') && (
+              <div className="flex items-center gap-1 ml-1.5 bg-white px-1.5 py-0.5 rounded border border-slate-300">
+                <span className="text-[10px] text-slate-500 font-bold">Val:</span>
+                <input
+                  type="number"
+                  value={selectedComp.value}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setElements((prev) =>
+                      prev.map((el) => (el.id === selectedComp.id ? { ...el, value: val } : el))
+                    );
+                  }}
+                  className="w-14 px-1 py-0.2 border border-slate-300 rounded text-xs font-mono font-bold"
+                />
+                <span className="font-mono text-slate-700 text-[11px]">{selectedComp.unit}</span>
+              </div>
+            )}
+
+            {/* Potentiometer Wiper Slider */}
+            {selectedComp.kind === 'potentiometer' && (
+              <div className="flex items-center gap-1 ml-1.5 bg-white px-2 py-0.5 rounded border border-slate-300">
+                <span className="text-[10px] text-slate-500 font-bold">Wiper:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={selectedComp.setting ?? 50}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setElements((prev) =>
+                      prev.map((el) => (el.id === selectedComp.id ? { ...el, setting: val } : el))
+                    );
+                  }}
+                  className="w-16 sm:w-20 cursor-pointer accent-blue-600"
+                />
+                <span className="font-mono font-bold text-blue-700 text-[10px]">{selectedComp.setting ?? 50}%</span>
+              </div>
+            )}
+
+            {/* Live Telemetry Display */}
+            {solvedState.elementValues[selectedComp.id] && (
+              <div className="hidden md:flex items-center gap-2 ml-1.5 pl-2 border-l border-slate-300 text-[11px] font-mono">
+                <span className="text-emerald-700 font-bold">
+                  {(solvedState.elementValues[selectedComp.id].voltageDrop || 0).toFixed(2)}V
+                </span>
+                <span className="text-amber-700 font-bold">
+                  {((solvedState.elementValues[selectedComp.id].currentThrough || 0) * 1000).toFixed(1)}mA
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions: Rotate, Properties, Duplicate, Delete */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => handleRotateComponent(selectedComp.id)}
+              className="p-1 hover:bg-white text-slate-700 border border-slate-300 rounded"
+              title="Rotate 90° (تدوير)"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => {
+                setEditingComp(selectedComp);
+                setShowPropertiesModal(true);
+              }}
+              className="p-1 hover:bg-white text-slate-700 border border-slate-300 rounded"
+              title="Properties (خصائص المكون)"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => handleDuplicateComponent(selectedComp)}
+              className="p-1 hover:bg-white text-slate-700 border border-slate-300 rounded"
+              title="Duplicate (نسخ)"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => handleDeleteComponent(selectedComp.id)}
+              className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded"
+              title="Delete Component (حذف)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setSelectedCompId(null)}
+              className="p-1 text-slate-400 hover:text-slate-700"
+              title="Close Inspector"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Selected Wire Action Bar */}
+      {selectedWireId && !selectedComp && (
+        <div className="bg-amber-50 border-b border-amber-300 px-3 py-1 flex items-center justify-between text-xs shrink-0">
+          <div className="flex items-center gap-2">
+            <Link className="w-3.5 h-3.5 text-amber-700" />
+            <span className="font-bold text-amber-900">Wire Selected (سلك توصيل محدد)</span>
+          </div>
+          <button
+            onClick={() => handleDeleteWire(selectedWireId)}
+            className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded flex items-center gap-1"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>Delete Wire (حذف السلك)</span>
+          </button>
+        </div>
+      )}
+
+      {/* Wiring Mode Active Banner */}
+      {wiringFrom && (
+        <div className="bg-indigo-600 text-white px-3 py-1 flex items-center justify-between text-xs shrink-0">
+          <div className="flex items-center gap-1.5 font-bold">
+            <Crosshair className="w-3.5 h-3.5 text-amber-300" />
+            <span>Wiring Mode: Click another component's pin to finish wire (انقر على أي طرف آخر لتوصيل السلك)</span>
+          </div>
+          <button
+            onClick={() => setWiringFrom(null)}
+            className="px-2 py-0.2 bg-white/20 hover:bg-white/30 text-white font-bold rounded text-[10px]"
+          >
+            Cancel (إلغاء)
+          </button>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 6. Main Body: Mode Strip + Center Canvas + Right Sidebar */}
+      {/* ======================================================== */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* ====================================================== */}
+        {/* A. Left Vertical Mode Strip                            */}
+        {/* ====================================================== */}
+        <div className="w-7 sm:w-8 md:w-9 bg-[#ece9d8] border-r border-[#aca899] flex flex-col items-center py-2 gap-1 shrink-0 z-20 shadow-xs select-none">
+          <button
+            onClick={() => setMode('normal')}
+            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
+              mode === 'normal'
+                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-blue-800 font-bold'
+                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
+            }`}
+            title="Normal Schematic Mode (المخطط الرمزي)"
+          >
+            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold">
+              Normal
+            </span>
+          </button>
+
+          <button
+            onClick={() => setMode('realworld')}
+            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
+              mode === 'realworld'
+                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-blue-800 font-bold'
+                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
+            }`}
+            title="Real World Mode (المكونات الواقعية)"
+          >
+            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold whitespace-nowrap">
+              Real World
+            </span>
+          </button>
+
+          <button
+            onClick={() => setMode('current_flow')}
+            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
+              mode === 'current_flow'
+                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-emerald-800 font-bold'
+                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
+            }`}
+            title="Current Flow (سريان التيار المتحرك)"
+          >
+            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold whitespace-nowrap">
+              Current Flow
+            </span>
+          </button>
+
+          <button
+            onClick={() => setMode('voltage_levels')}
+            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
+              mode === 'voltage_levels'
+                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-red-800 font-bold'
+                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
+            }`}
+            title="Voltage Levels (مستويات الجهد)"
+          >
+            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold whitespace-nowrap">
+              Voltage Levels
+            </span>
+          </button>
+        </div>
+
+        {/* ====================================================== */}
+        {/* B. Center Workspace: Paper Page with Drop Shadow       */}
+        {/* ====================================================== */}
+        <div
+          className="flex-1 bg-[#808080] p-1 sm:p-3 md:p-4 overflow-auto flex items-center justify-center relative touch-pan-x touch-pan-y"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
+        >
+          {/* Main Paper Sheet Container (Fixed & Stable across Mobile/Tablet/Desktop) */}
+          <div
+            className="bg-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] border border-[#333333] relative shrink-0 transition-transform origin-center w-full max-w-[740px]"
+            style={{
+              aspectRatio: '740 / 540',
+              transform: zoomPercent !== 100 ? `scale(${zoomPercent / 100})` : undefined
+            }}
+            onDragOver={handleCanvasDragOver}
+            onDrop={handleCanvasDrop}
+          >
+            {/* SVG Interactive Canvas */}
+            <svg
+              ref={svgRef}
+              className="w-full h-full block cursor-crosshair select-none"
+              viewBox="0 0 740 540"
+              style={{ overflow: 'visible', touchAction: 'none' }}
+            >
+              <defs>
+                {/* Glow filter for lit incandescent bulb */}
+                <radialGradient id="bulbGlowGradient" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#ffeb3b" stopOpacity="0.95" />
+                  <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.6" />
+                  <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                </radialGradient>
+
+                {/* Metallic Gradient for Battery Body */}
+                <linearGradient id="batteryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#1e293b" />
+                  <stop offset="35%" stopColor="#334155" />
+                  <stop offset="70%" stopColor="#1e293b" />
+                  <stop offset="100%" stopColor="#0f172a" />
+                </linearGradient>
+
+                {/* Copper Top Gradient for Battery + */}
+                <linearGradient id="copperGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#ea580c" />
+                  <stop offset="50%" stopColor="#fdba74" />
+                  <stop offset="100%" stopColor="#c2410c" />
+                </linearGradient>
+
+                {/* Breadboard Body Gradient */}
+                <linearGradient id="breadboardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#fcfbf7" />
+                  <stop offset="50%" stopColor="#f5f2e9" />
+                  <stop offset="100%" stopColor="#ebe7dc" />
+                </linearGradient>
+
+                {/* Grid Dot Pattern */}
+                <pattern id="cadGridDots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <circle cx="10" cy="10" r="0.8" fill="#cbd5e1" />
+                </pattern>
+              </defs>
+
+              {/* Toggleable CAD Grid Dots */}
+              {showGrid && <rect x="0" y="0" width="740" height="540" fill="url(#cadGridDots)" />}
+
+              {/* ---------------------------------------------------- */}
+              {/* Top-Left: Home Use - Student Edition Badge            */}
+              {/* ---------------------------------------------------- */}
+              <g transform="translate(14, 14)" className="pointer-events-none">
+                <rect x="0" y="0" width="74" height="48" fill="#ece9d8" stroke="#a0a0a0" strokeWidth="1" rx="2" />
+                <rect x="0" y="0" width="74" height="16" fill="#000000" rx="1" />
+                <text x="37" y="12" textAnchor="middle" fill="#ffffff" fontSize="8.5" fontWeight="bold" fontFamily="sans-serif">
+                  Home Use
+                </text>
+                <path d="M 12 40 L 20 25 L 28 40 Z" fill="#facc15" stroke="#ca8a04" strokeWidth="0.8" />
+                <text x="20" y="38" textAnchor="middle" fill="#000000" fontSize="8.5" fontWeight="900" fontFamily="sans-serif">
+                  !
+                </text>
+                <text x="34" y="31" fill="#dc2626" fontSize="7.5" fontWeight="bold" fontFamily="sans-serif">
+                  Student
+                </text>
+                <text x="34" y="41" fill="#dc2626" fontSize="7.5" fontWeight="bold" fontFamily="sans-serif">
+                  Edition
+                </text>
+              </g>
+
+              {/* ---------------------------------------------------- */}
+              {/* Instructions Text (Clean & Uncrowded)                */}
+              {/* ---------------------------------------------------- */}
+              {activeCircuit.id !== 'custom_project' && (
+                <g transform="translate(255, 38)" className="pointer-events-none">
+                  <text x="0" y="0" fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
+                    {activeCircuit.instructions.title}
+                  </text>
+                  <text x="0" y="18" fill="#475569" fontSize="10" fontFamily="sans-serif">
+                    {activeCircuit.instructions.line1}
+                  </text>
+                  <text x="0" y="32" fill="#475569" fontSize="10" fontFamily="sans-serif">
+                    {activeCircuit.instructions.line2}
+                  </text>
+                </g>
+              )}
+
+              {/* Short Circuit Alert Warning Banner */}
+              {solvedState.hasShortCircuit && (
+                <g transform="translate(370, 90)">
+                  <rect x="-135" y="-12" width="270" height="24" rx="3" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" />
+                  <text x="0" y="5" textAnchor="middle" fill="#ffffff" fontSize="10.5" fontWeight="bold">
+                    ⚠️ SHORT CIRCUIT DETECTED! ماس كهربائي
+                  </text>
+                </g>
+              )}
+
+              {/* ---------------------------------------------------- */}
+              {/* Real Connecting Wires                                */}
+              {/* ---------------------------------------------------- */}
               {wires.map((wire) => {
-                const p1 = getPinCanvasCoords(wire.fromCompId, wire.fromPinId);
-                const p2 = getPinCanvasCoords(wire.toCompId, wire.toPinId);
+                const compA = elements.find((e) => e.id === wire.fromCompId);
+                const compB = elements.find((e) => e.id === wire.toCompId);
+                if (!compA || !compB) return null;
 
-                let strokeColor = '#3b82f6';
-                if (showVoltageColors) {
-                  const v = wire.voltage ?? 0;
-                  if (v > 4.5) strokeColor = '#ef4444'; // High positive
-                  else if (v > 1.5) strokeColor = '#f59e0b'; // Intermediate
-                  else if (v <= 0.1) strokeColor = '#3b82f6'; // Ground
+                const p1 = getPinAbsolutePos(compA, wire.fromPinId);
+                const p2 = getPinAbsolutePos(compB, wire.toPinId);
+                const pathStr = getWirePath(p1, p2);
+
+                let strokeColor = wire.color;
+                if (mode === 'voltage_levels') {
+                  strokeColor = wire.color === '#dc2626' ? '#ef4444' : solvedState.isLoopActive && wire.color === '#2563eb' ? '#ef4444' : '#1e293b';
                 }
 
-                // Orthogonal routing path (midpoint bend)
-                const midX = (p1.x + p2.x) / 2;
-                const pathD = `M ${p1.x} ${p1.y} L ${midX} ${p1.y} L ${midX} ${p2.y} L ${p2.x} ${p2.y}`;
+                const isSelected = selectedWireId === wire.id;
 
                 return (
-                  <g key={wire.id} className="cursor-pointer group">
+                  <g
+                    key={wire.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedWireId(wire.id);
+                      setSelectedCompId(null);
+                    }}
+                    className="cursor-pointer group"
+                  >
+                    {/* Shadow / Click Target */}
                     <path
-                      d={pathD}
-                      stroke="transparent"
-                      strokeWidth="14"
+                      d={pathStr}
                       fill="none"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const nextWires = wires.filter((w) => w.id !== wire.id);
-                        setWires(nextWires);
-                        pushHistory(elements, nextWires);
-                      }}
-                    />
-                    <path
-                      d={pathD}
-                      stroke={strokeColor}
-                      strokeWidth="2.5"
+                      stroke={isSelected ? '#3b82f6' : '#000000'}
+                      strokeWidth={isSelected ? '7' : '5'}
+                      strokeOpacity={isSelected ? 0.6 : 0.16}
                       strokeLinecap="round"
-                      strokeLinejoin="round"
+                    />
+                    {/* Main Core Wire */}
+                    <path
+                      d={pathStr}
                       fill="none"
-                      className="transition-colors duration-150"
+                      stroke={strokeColor}
+                      strokeWidth="2.8"
+                      strokeLinecap="round"
                     />
 
-                    {/* Animated Current Flow Dots (Circuit Wizard signature) */}
-                    {isRunning && showCurrentFlow && (wire.current ?? 0) > 0.001 && (
-                      <circle r="3.5" fill="#fde047" className="animate-pulse shadow-sm">
-                        <animateMotion
-                          path={pathD}
-                          dur={`${Math.max(0.4, 2.5 - (wire.current || 0.1) * 3)}s`}
-                          repeatCount="indefinite"
-                        />
-                      </circle>
+                    {/* Current Flow Mode: Animated Charge Dots */}
+                    {mode === 'current_flow' && solvedState.isLoopActive && (
+                      <path
+                        d={pathStr}
+                        fill="none"
+                        stroke="#22c55e"
+                        strokeWidth="3.2"
+                        strokeDasharray="4 8"
+                        strokeDashoffset={-currentTick * 2}
+                        strokeLinecap="round"
+                      />
                     )}
                   </g>
                 );
               })}
 
-              {/* Rubberband Wire when wiring between pins */}
+              {/* Rubber-band Wire when creating a wire */}
               {wiringFrom && (
-                <line
-                  x1={getPinCanvasCoords(wiringFrom.compId, wiringFrom.pinId).x}
-                  y1={getPinCanvasCoords(wiringFrom.compId, wiringFrom.pinId).y}
-                  x2={getPinCanvasCoords(wiringFrom.compId, wiringFrom.pinId).x + 30}
-                  y2={getPinCanvasCoords(wiringFrom.compId, wiringFrom.pinId).y + 30}
-                  stroke="#a855f7"
+                <path
+                  d={getWirePath(wiringFrom, mousePos)}
+                  fill="none"
+                  stroke={wireColor}
                   strokeWidth="2.5"
-                  strokeDasharray="4 4"
-                  className="animate-pulse"
+                  strokeDasharray="5 5"
                 />
               )}
 
-              {/* Render Components */}
-              {elements.map((comp) => {
-                const isSelected = comp.id === selectedCompId;
-                const pins = COMPONENT_PINS[comp.kind] || [];
+              {/* ---------------------------------------------------- */}
+              {/* Circuit Components                                   */}
+              {/* ---------------------------------------------------- */}
+              {elements.map((el) => {
+                const isSelected = selectedCompId === el.id;
+                const compPins = COMPONENT_PINS[el.kind] || [];
+                const elValues = solvedState.elementValues[el.id] || { isLit: false, isSpinning: false, isBuzzing: false };
 
                 return (
                   <g
-                    key={comp.id}
-                    transform={`translate(${comp.x}, ${comp.y}) rotate(${comp.rotation})`}
-                    onPointerDown={(e) => handleCompPointerDown(e, comp)}
-                    onClick={(e) => handleComponentClick(e, comp)}
-                    className="cursor-move group"
+                    key={el.id}
+                    transform={`translate(${el.x}, ${el.y})`}
+                    className="cursor-grab active:cursor-grabbing"
+                    onMouseDown={(e) => handleCompMouseDown(e, el)}
+                    onTouchStart={(e) => handleCompMouseDown(e, el)}
+                    onDoubleClick={() => {
+                      setEditingComp(el);
+                      setShowPropertiesModal(true);
+                    }}
                   >
-                    {/* Selection halo */}
+                    {/* Selection Highlight Box */}
                     {isSelected && (
                       <rect
                         x="-48"
                         y="-48"
                         width="96"
                         height="96"
-                        fill="rgba(168, 85, 247, 0.1)"
-                        stroke="#a855f7"
+                        rx="6"
+                        fill="rgba(59, 130, 246, 0.08)"
+                        stroke="#2563eb"
                         strokeWidth="1.5"
-                        strokeDasharray="3 3"
-                        rx="8"
+                        strokeDasharray="4 4"
                       />
                     )}
 
-                    {/* Render Component Body: Real-World vs Schematic */}
-                    {viewMode === 'realworld' ? (
-                      <RealWorldComponentRenderer comp={comp} tick={currentTick} />
-                    ) : (
-                      <SchematicComponentRenderer comp={comp} tick={currentTick} />
-                    )}
+                    {/* Rotated Component Artwork */}
+                    <g transform={`rotate(${el.rotation || 0})`}>
+                      {/* === REAL WORLD MODE ARTWORK === */}
+                      {mode !== 'normal' && (
+                        <>
+                          {/* 1. Breadboard */}
+                          {el.kind === 'breadboard' && (
+                            <g>
+                              <rect x="-130" y="-55" width="260" height="110" rx="6" fill="url(#breadboardGrad)" stroke="#b5ad98" strokeWidth="2" filter="drop-shadow(0 2px 5px rgba(0,0,0,0.18))" />
+                              {/* Power Bus Lines */}
+                              <line x1="-120" y1="-46" x2="120" y2="-46" stroke="#ef4444" strokeWidth="1.5" />
+                              <line x1="-120" y1="-38" x2="120" y2="-38" stroke="#3b82f6" strokeWidth="1.5" />
+                              <line x1="-120" y1="38" x2="120" y2="38" stroke="#ef4444" strokeWidth="1.5" />
+                              <line x1="-120" y1="46" x2="120" y2="46" stroke="#3b82f6" strokeWidth="1.5" />
+                              <text x="-124" y="-43" fill="#ef4444" fontSize="7" fontWeight="bold">+</text>
+                              <text x="-124" y="-35" fill="#3b82f6" fontSize="7" fontWeight="bold">-</text>
+                              <text x="-124" y="41" fill="#ef4444" fontSize="7" fontWeight="bold">+</text>
+                              <text x="-124" y="49" fill="#3b82f6" fontSize="7" fontWeight="bold">-</text>
+                              {/* Tie-point rows */}
+                              {[-90, -60, -30, 0, 30, 60, 90].map((rx) => (
+                                <g key={rx}>
+                                  {[-22, -14, -6, 6, 14, 22].map((ry) => (
+                                    <circle key={ry} cx={rx} cy={ry} r="2.2" fill="#2d2b27" stroke="#716b5e" strokeWidth="0.8" />
+                                  ))}
+                                </g>
+                              ))}
+                              {/* Center Divider Groove */}
+                              <line x1="-125" y1="0" x2="125" y2="0" stroke="#a8a29e" strokeWidth="2.5" />
+                              <text x="0" y="-50" textAnchor="middle" fill="#78716c" fontSize="6.5" fontWeight="bold">BREADBOARD</text>
+                            </g>
+                          )}
 
-                    {/* Overloaded Smoke / Flame Icon */}
-                    {comp.isOverloaded && (
-                      <g transform="translate(0, -35)">
-                        <circle r="12" fill="#ef4444" className="animate-ping opacity-75" />
-                        <text textAnchor="middle" dominantBaseline="central" fontSize="14">
-                          🔥
-                        </text>
-                      </g>
-                    )}
+                          {/* 2. AA Battery 1.5V */}
+                          {el.kind === 'battery_aa' && (
+                            <g>
+                              <rect x="-16" y="-85" width="32" height="145" rx="5" fill="#000000" opacity="0.15" />
+                              <rect x="-5" y="-95" width="10" height="10" rx="2" fill="url(#copperGrad)" stroke="#7c2d12" strokeWidth="0.8" />
+                              <rect x="-15" y="-84" width="30" height="32" rx="2" fill="url(#copperGrad)" stroke="#9a3412" strokeWidth="0.8" />
+                              <text x="0" y="-70" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">+</text>
+                              <text x="0" y="-58" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold">1.5V</text>
+                              <rect x="-15" y="-52" width="30" height="102" rx="2" fill="url(#batteryGrad)" stroke="#1e293b" strokeWidth="1" />
+                              <text x="0" y="10" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="bold" letterSpacing="2" transform="rotate(-90, 0, 10)">
+                                AA
+                              </text>
+                              <rect x="-13" y="50" width="26" height="5" rx="1" fill="#cbd5e1" stroke="#64748b" strokeWidth="0.8" />
+                            </g>
+                          )}
 
-                    {/* Component Label */}
+                          {/* 3. 9V / 6V Battery */}
+                          {(el.kind === 'battery_9v' || el.kind === 'battery_4aa') && (
+                            <g>
+                              <rect x="-22" y="-55" width="44" height="90" rx="4" fill="#0f172a" stroke="#334155" strokeWidth="1.5" />
+                              <rect x="-12" y="-64" width="9" height="9" fill="#94a3b8" rx="1" />
+                              <circle cx="8" cy="-60" r="4.5" fill="#f59e0b" stroke="#b45309" />
+                              <text x="0" y="5" textAnchor="middle" fill="#f59e0b" fontSize="12" fontWeight="bold">{el.value}V</text>
+                            </g>
+                          )}
+
+                          {/* 4. Toggle Switch SW1 */}
+                          {(el.kind === 'switch_spst' || el.kind === 'push_button') && (
+                            <g onClick={(e) => { e.stopPropagation(); handleToggleSwitch(el.id); }}>
+                              <rect x="-15" y="-8" width="30" height="24" rx="2" fill="#dc2626" stroke="#991b1b" strokeWidth="1" />
+                              <rect x="-9" y="-14" width="18" height="6" fill="#cbd5e1" stroke="#64748b" strokeWidth="0.8" />
+                              <line
+                                x1="0"
+                                y1="-14"
+                                x2={el.state === false ? -13 : 13}
+                                y2="-31"
+                                stroke="#e2e8f0"
+                                strokeWidth="4.5"
+                                strokeLinecap="round"
+                                className="transition-all duration-150"
+                              />
+                              <circle cx={el.state === false ? -13 : 13} cy="-31" r="3.2" fill="#cbd5e1" />
+                              <rect x="-15" y="16" width="4" height="8" rx="1" fill="#94a3b8" />
+                              <rect x="11" y="16" width="4" height="8" rx="1" fill="#94a3b8" />
+                            </g>
+                          )}
+
+                          {/* 5. Incandescent Filament Bulb */}
+                          {el.kind === 'bulb' && (
+                            <g>
+                              {elValues.isLit && (
+                                <circle cx="26" cy="0" r="52" fill="url(#bulbGlowGradient)" />
+                              )}
+                              <rect x="-24" y="-12" width="24" height="24" rx="2" fill="#cbd5e1" stroke="#64748b" strokeWidth="1" />
+                              <line x1="-20" y1="-7" x2="-2" y2="-7" stroke="#94a3b8" strokeWidth="1.5" />
+                              <line x1="-20" y1="0" x2="-2" y2="0" stroke="#94a3b8" strokeWidth="1.5" />
+                              <line x1="-20" y1="7" x2="-2" y2="7" stroke="#94a3b8" strokeWidth="1.5" />
+                              <path d="M -24 -6 C -28 -6, -28 6, -24 6 Z" fill="#1e293b" />
+                              <path
+                                d="M 0 -12 C 10 -18, 38 -20, 48 -10 C 58 0, 58 0, 48 10 C 38 20, 10 18, 0 12 Z"
+                                fill={elValues.isLit ? '#fffbeb' : '#f8fafc'}
+                                fillOpacity={elValues.isLit ? 0.95 : 0.65}
+                                stroke={elValues.isLit ? '#f59e0b' : '#94a3b8'}
+                                strokeWidth="1.2"
+                              />
+                              <line x1="0" y1="-5" x2="22" y2="-5" stroke="#94a3b8" strokeWidth="1" />
+                              <line x1="0" y1="5" x2="22" y2="5" stroke="#94a3b8" strokeWidth="1" />
+                              <path d="M 22 -5 L 26 -2 L 24 0 L 26 2 L 22 5" fill="none" stroke={elValues.isLit ? '#ea580c' : '#475569'} strokeWidth={elValues.isLit ? 2.5 : 1.2} />
+                            </g>
+                          )}
+
+                          {/* 6. Potentiometer */}
+                          {el.kind === 'potentiometer' && (
+                            <g>
+                              <circle cx="0" cy="0" r="20" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
+                              <circle cx="0" cy="0" r="13" fill="#334155" />
+                              <circle cx="0" cy="-6" r="3" fill="#38bdf8" />
+                              <rect x="-19" y="14" width="4" height="6" fill="#94a3b8" />
+                              <rect x="-2" y="14" width="4" height="6" fill="#94a3b8" />
+                              <rect x="15" y="14" width="4" height="6" fill="#94a3b8" />
+                            </g>
+                          )}
+
+                          {/* 7. Resistor */}
+                          {el.kind === 'resistor' && (
+                            <g>
+                              <line x1="-28" y1="0" x2="28" y2="0" stroke="#cbd5e1" strokeWidth="2" />
+                              <rect x="-16" y="-6.5" width="32" height="13" rx="3" fill="#fde68a" stroke="#d97706" />
+                              <rect x="-10" y="-6.5" width="2.5" height="13" fill="#92400e" />
+                              <rect x="-4" y="-6.5" width="2.5" height="13" fill="#000000" />
+                              <rect x="2" y="-6.5" width="2.5" height="13" fill="#ef4444" />
+                              <rect x="8" y="-6.5" width="2" height="13" fill="#d4af37" />
+                            </g>
+                          )}
+
+                          {/* 8. LED */}
+                          {el.kind === 'led' && (
+                            <g>
+                              {elValues.isLit && <circle cx="0" cy="0" r="22" fill={el.color || '#ef4444'} opacity="0.45" />}
+                              <line x1="-16" y1="0" x2="16" y2="0" stroke="#cbd5e1" strokeWidth="2" />
+                              <circle cx="0" cy="0" r="11" fill={elValues.isLit ? el.color || '#ef4444' : '#64748b'} stroke="#cbd5e1" strokeWidth="1.5" />
+                            </g>
+                          )}
+
+                          {/* 9. Buzzer */}
+                          {el.kind === 'buzzer' && (
+                            <g>
+                              <circle cx="0" cy="0" r="17" fill="#1e293b" stroke="#475569" strokeWidth="2" />
+                              <circle cx="0" cy="0" r="6" fill="#0f172a" />
+                              {elValues.isBuzzing && (
+                                <path d="M 20 -8 A 12 12 0 0 1 20 8" fill="none" stroke="#0284c7" strokeWidth="2" />
+                              )}
+                              <rect x="-15" y="12" width="3" height="6" fill="#94a3b8" />
+                              <rect x="12" y="12" width="3" height="6" fill="#94a3b8" />
+                            </g>
+                          )}
+
+                          {/* 10. DC Motor */}
+                          {el.kind === 'motor' && (
+                            <g>
+                              <circle cx="0" cy="0" r="20" fill="#475569" stroke="#94a3b8" strokeWidth="2" />
+                              <circle cx="0" cy="0" r="13" fill="#1e293b" />
+                              <g transform={`rotate(${elValues.isSpinning ? (currentTick * 36) % 360 : 0})`}>
+                                <line x1="-9" y1="0" x2="9" y2="0" stroke="#38bdf8" strokeWidth="2.5" />
+                                <line x1="0" y1="-9" x2="0" y2="9" stroke="#38bdf8" strokeWidth="2.5" />
+                              </g>
+                            </g>
+                          )}
+
+                          {/* 11. Voltmeter & Ammeter with Real Digital Screen */}
+                          {(el.kind === 'voltmeter' || el.kind === 'ammeter') && (
+                            <g>
+                              <rect x="-30" y="-22" width="60" height="44" rx="4" fill="#1e293b" stroke="#0284c7" strokeWidth="1.5" />
+                              <rect x="-24" y="-16" width="48" height="20" rx="2" fill="#042f2e" stroke="#0f766e" strokeWidth="1" />
+                              <text x="0" y="-3" textAnchor="middle" fill="#2dd4bf" fontSize="9.5" fontFamily="monospace" fontWeight="bold">
+                                {el.kind === 'voltmeter'
+                                  ? `${(solvedState.meterReadings[el.id] ?? 0).toFixed(2)} V`
+                                  : `${((solvedState.meterReadings[el.id] ?? 0) * 1000).toFixed(1)} mA`}
+                              </text>
+                              <circle cx="-26" cy="18" r="3" fill="#ef4444" stroke="#991b1b" />
+                              <circle cx="26" cy="18" r="3" fill="#1e293b" stroke="#000000" />
+                            </g>
+                          )}
+
+                          {/* 12. Generic / Capacitor / Diode */}
+                          {(el.kind === 'capacitor' || el.kind === 'diode') && (
+                            <g>
+                              <line x1="-20" y1="0" x2="20" y2="0" stroke="#cbd5e1" strokeWidth="2" />
+                              <rect x="-14" y="-12" width="28" height="24" rx="3" fill="#334155" stroke="#94a3b8" />
+                              <text x="0" y="3" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold">
+                                {el.ref}
+                              </text>
+                            </g>
+                          )}
+                        </>
+                      )}
+
+                      {/* === NORMAL (SCHEMATIC) MODE ARTWORK === */}
+                      {mode === 'normal' && (
+                        <g>
+                          {/* Battery Schematic */}
+                          {(el.kind === 'battery_aa' || el.kind === 'battery_9v' || el.kind === 'battery_4aa') && (
+                            <g>
+                              <line x1="0" y1="-95" x2="0" y2="-20" stroke="#000000" strokeWidth="2" />
+                              <line x1="-16" y1="-20" x2="16" y2="-20" stroke="#000000" strokeWidth="3" />
+                              <line x1="-9" y1="-8" x2="9" y2="-8" stroke="#000000" strokeWidth="4.5" />
+                              <line x1="-16" y1="4" x2="16" y2="4" stroke="#000000" strokeWidth="3" />
+                              <line x1="-9" y1="16" x2="9" y2="16" stroke="#000000" strokeWidth="4.5" />
+                              <line x1="0" y1="16" x2="0" y2="55" stroke="#000000" strokeWidth="2" />
+                              <text x="22" y="-16" fill="#000000" fontSize="10" fontWeight="bold">+</text>
+                              <text x="22" y="20" fill="#000000" fontSize="10" fontWeight="bold">-</text>
+                            </g>
+                          )}
+
+                          {/* Switch SPST Schematic */}
+                          {(el.kind === 'switch_spst' || el.kind === 'push_button') && (
+                            <g onClick={(e) => { e.stopPropagation(); handleToggleSwitch(el.id); }}>
+                              <circle cx="-13" cy="20" r="3" fill="#000000" />
+                              <circle cx="13" cy="20" r="3" fill="#000000" />
+                              {el.state ? (
+                                <line x1="-13" y1="20" x2="13" y2="20" stroke="#000000" strokeWidth="2.5" />
+                              ) : (
+                                <line x1="-13" y1="20" x2="11" y2="6" stroke="#000000" strokeWidth="2.5" />
+                              )}
+                            </g>
+                          )}
+
+                          {/* Bulb Schematic */}
+                          {el.kind === 'bulb' && (
+                            <g>
+                              <circle cx="-24" cy="0" r="14" fill="none" stroke="#000000" strokeWidth="2" />
+                              <line x1="-34" y1="-10" x2="-14" y2="10" stroke="#000000" strokeWidth="2" />
+                              <line x1="-14" y1="-10" x2="-34" y2="10" stroke="#000000" strokeWidth="2" />
+                            </g>
+                          )}
+
+                          {/* Resistor Schematic */}
+                          {el.kind === 'resistor' && (
+                            <g>
+                              <line x1="-28" y1="0" x2="-16" y2="0" stroke="#000000" strokeWidth="2" />
+                              <rect x="-16" y="-6" width="32" height="12" fill="none" stroke="#000000" strokeWidth="2" />
+                              <line x1="16" y1="0" x2="28" y2="0" stroke="#000000" strokeWidth="2" />
+                            </g>
+                          )}
+
+                          {/* LED Schematic */}
+                          {el.kind === 'led' && (
+                            <g>
+                              <line x1="-16" y1="0" x2="-8" y2="0" stroke="#000000" strokeWidth="2" />
+                              <polygon points="-8,-8 -8,8 8,0" fill="#000000" />
+                              <line x1="8" y1="-8" x2="8" y2="8" stroke="#000000" strokeWidth="2.5" />
+                              <line x1="8" y1="0" x2="16" y2="0" stroke="#000000" strokeWidth="2" />
+                            </g>
+                          )}
+
+                          {/* Other Schematics */}
+                          {el.kind !== 'battery_aa' && el.kind !== 'battery_9v' && el.kind !== 'battery_4aa' && el.kind !== 'switch_spst' && el.kind !== 'push_button' && el.kind !== 'bulb' && el.kind !== 'resistor' && el.kind !== 'led' && (
+                            <g>
+                              <rect x="-20" y="-14" width="40" height="28" fill="#ffffff" stroke="#000000" strokeWidth="2" rx="2" />
+                              <text x="0" y="4" textAnchor="middle" fill="#000000" fontSize="9" fontWeight="bold">
+                                {el.ref}
+                              </text>
+                            </g>
+                          )}
+                        </g>
+                      )}
+                    </g>
+
+                    {/* Component Name Label */}
                     <text
                       x="0"
-                      y="42"
+                      y="-34"
                       textAnchor="middle"
-                      fill="#94a3b8"
-                      fontSize="9"
-                      fontWeight="bold"
-                      className="select-none pointer-events-none"
+                      fill="#0f172a"
+                      fontSize="10"
+                      fontFamily="sans-serif"
+                      className="pointer-events-none select-none font-semibold"
                     >
-                      {comp.label || comp.nameAr}
+                      {el.name}
                     </text>
 
-                    {/* Render Component Pins (Connection Points) */}
-                    {pins.map((pin) => (
-                      <g
-                        key={pin.id}
-                        transform={`translate(${pin.relX}, ${pin.relY})`}
-                        onClick={(e) => handlePinClick(e, comp.id, pin.id)}
-                        className="cursor-pointer group/pin"
-                      >
-                        <circle r="22" fill="transparent" />
-                        {wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id && (
-                          <circle r="12" fill="none" stroke="#a855f7" strokeWidth="2.5" className="animate-ping opacity-75" />
-                        )}
-                        <circle
-                          r={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? 5.5 : 4}
-                          fill={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? '#a855f7' : '#0f172a'}
-                          stroke={wiringFrom?.compId === comp.id && wiringFrom?.pinId === pin.id ? '#ffffff' : '#e2e8f0'}
-                          strokeWidth="2"
-                          className="transition-colors group-hover/pin:stroke-amber-400 group-hover/pin:fill-amber-400"
-                        />
-                        <text
-                          y="-7"
-                          textAnchor="middle"
-                          fill="#cbd5e1"
-                          fontSize="7"
-                          className="opacity-0 group-hover/pin:opacity-100 transition-opacity font-mono pointer-events-none"
+                    {/* Interactive Component Connection Pins */}
+                    {compPins.map((pin) => {
+                      const isPinActive = wiringFrom?.compId === el.id && wiringFrom?.pinId === pin.id;
+                      return (
+                        <g
+                          key={pin.id}
+                          transform={`translate(${pin.relX}, ${pin.relY})`}
+                          onClick={(e) => handlePinClick(e, el, pin.id)}
+                          className="cursor-pointer group/pin"
                         >
-                          {pin.name}
-                        </text>
-                      </g>
-                    ))}
+                          {/* Generous touch target for phones and tablets */}
+                          <circle cx="0" cy="0" r="16" fill="transparent" />
+
+                          {/* Ping highlight when wiring */}
+                          {isPinActive && (
+                            <circle cx="0" cy="0" r="10" fill="none" stroke="#2563eb" strokeWidth="2" className="animate-ping" />
+                          )}
+
+                          {/* Pin circle */}
+                          <circle
+                            cx="0"
+                            cy="0"
+                            r={isPinActive ? '4.8' : '3.4'}
+                            fill={isPinActive ? '#2563eb' : '#ffffff'}
+                            stroke={isPinActive ? '#1e3a8a' : '#1e293b'}
+                            strokeWidth="1.6"
+                            className="transition-transform group-hover/pin:scale-125 group-hover/pin:fill-amber-400 group-hover/pin:stroke-amber-600"
+                          />
+                        </g>
+                      );
+                    })}
                   </g>
                 );
               })}
-            </g>
-          </svg>
 
-          {/* Quick HUD Tip on Bottom-Left */}
-          <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 p-2.5 rounded-xl text-[11px] text-slate-300 pointer-events-none max-w-xs shadow-lg space-y-1 z-10 hidden sm:block">
-            <div className="flex items-center gap-1.5 font-bold text-white">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>مختبر سيركت ويزارد للهواتف والكمبيوتر</span>
-            </div>
-            <p className="text-slate-400 leading-tight">
-              انقر على أي طرف لتمديد سلك، انقر على السلك لحذفه، وانقر على المفاتيح لتشغيلها أثناء المحاكاة.
-            </p>
+              {/* ---------------------------------------------------- */}
+              {/* Optional Schematic Inset Box                         */}
+              {/* ---------------------------------------------------- */}
+              {activeCircuit.schematicBox && (
+                <g transform={`translate(${activeCircuit.schematicBox.x}, ${activeCircuit.schematicBox.y})`}>
+                  <rect
+                    x="0"
+                    y="0"
+                    width={activeCircuit.schematicBox.width}
+                    height={activeCircuit.schematicBox.height}
+                    rx="14"
+                    fill="#000000"
+                    stroke="#222222"
+                    strokeWidth="1.2"
+                  />
+                  <rect x="28" y="24" width="124" height="86" fill="none" stroke="#f59e0b" strokeWidth="1.6" rx="3" />
+
+                  {/* Battery B1 */}
+                  <g transform="translate(28, 67)">
+                    <rect x="-8" y="-16" width="16" height="32" fill="#000000" />
+                    <line x1="-11" y1="-5" x2="11" y2="-5" stroke="#f59e0b" strokeWidth="2.2" />
+                    <text x="-15" y="-3" fill="#ffffff" fontSize="8" fontWeight="bold">+</text>
+                    <line x1="-6" y1="5" x2="6" y2="5" stroke="#f59e0b" strokeWidth="3.5" />
+                    <text x="-15" y="7" fill="#ffffff" fontSize="8" fontWeight="bold">-</text>
+                    <text x="-18" y="-10" textAnchor="end" fill="#ffffff" fontSize="7.5" fontWeight="bold">Battery</text>
+                    <text x="-18" y="0" textAnchor="end" fill="#ffffff" fontSize="7.5">B1</text>
+                    <text x="-18" y="10" textAnchor="end" fill="#ffffff" fontSize="7.5">1.5V</text>
+                  </g>
+
+                  {/* Switch SW1 */}
+                  <g transform="translate(90, 24)">
+                    <rect x="-16" y="-5" width="32" height="10" fill="#000000" />
+                    <circle cx="-10" cy="0" r="2.2" fill="#f59e0b" />
+                    <circle cx="10" cy="0" r="2.2" fill="#f59e0b" />
+                    {solvedState.isLoopActive ? (
+                      <line x1="-10" y1="0" x2="10" y2="0" stroke="#f59e0b" strokeWidth="1.8" />
+                    ) : (
+                      <line x1="-10" y1="0" x2="8" y2="-9" stroke="#f59e0b" strokeWidth="1.8" />
+                    )}
+                    <text x="0" y="-13" textAnchor="middle" fill="#ffffff" fontSize="7.5" fontWeight="bold">Switch</text>
+                    <text x="0" y="-4" textAnchor="middle" fill="#ffffff" fontSize="7.5">SW1</text>
+                  </g>
+
+                  {/* Bulb BL1 */}
+                  <g transform="translate(152, 67)">
+                    <rect x="-11" y="-14" width="22" height="28" fill="#000000" />
+                    <circle cx="0" cy="0" r="9.5" fill={solvedState.isLoopActive ? '#fef08a' : '#000000'} stroke="#f59e0b" strokeWidth="1.6" />
+                    <line x1="-6.5" y1="-6.5" x2="6.5" y2="6.5" stroke={solvedState.isLoopActive ? '#ea580c' : '#f59e0b'} strokeWidth="1.6" />
+                    <line x1="6.5" y1="-6.5" x2="-6.5" y2="6.5" stroke={solvedState.isLoopActive ? '#ea580c' : '#f59e0b'} strokeWidth="1.6" />
+                    <text x="-15" y="-3" textAnchor="end" fill="#ffffff" fontSize="7.5" fontWeight="bold">Bulb</text>
+                    <text x="-15" y="7" textAnchor="end" fill="#ffffff" fontSize="7.5">BL1</text>
+                  </g>
+                </g>
+              )}
+            </svg>
           </div>
         </div>
 
-        {/* Backdrop for Inspector on Mobile & Tablet */}
-        {showInspector && selectedComp && (
-          <div
-            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity"
-            onClick={() => setShowInspector(false)}
-          />
-        )}
+        {/* ====================================================== */}
+        {/* C. Right Sidebar: Assistant & Gallery                  */}
+        {/* ====================================================== */}
+        {rightTab && (
+          <>
+            {/* Backdrop for mobile & tablet (< 1024px) */}
+            <div
+              className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-2xs z-40 transition-opacity"
+              onClick={() => setRightTab(null)}
+            />
 
-        {/* Right Inspector Drawer (Properties for Selected Component) */}
-        {showInspector && selectedComp && (
-          <div className="fixed inset-x-0 bottom-0 max-h-[75vh] lg:static lg:w-72 bg-slate-900/98 backdrop-blur-lg border-t lg:border-t-0 lg:border-r border-slate-800 p-4 flex flex-col justify-between shrink-0 z-40 space-y-4 shadow-2xl rounded-t-3xl lg:rounded-none overflow-y-auto">
-            {/* Drag Notch for Mobile */}
-            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto -mt-1 mb-1 lg:hidden shrink-0" />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2 shrink-0">
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-purple-400" />
-                  <h4 className="font-bold text-xs text-white">خصائص العنصر</h4>
-                </div>
+            {/* Sidebar drawer */}
+            <div className="fixed inset-y-0 right-0 z-50 lg:static w-72 sm:w-80 bg-[#ece9d8] border-l border-[#aca899] flex flex-col shrink-0 shadow-2xl lg:shadow-none transition-transform">
+              {/* Mobile Drawer Header */}
+              <div className="lg:hidden bg-[#0a246a] text-white px-3 py-2 flex items-center justify-between">
+                <span className="font-bold text-xs">
+                  {rightTab === 'assistant' ? 'Sample Circuits Assistant' : 'Component Gallery (لوحة المكونات)'}
+                </span>
                 <button
-                  onClick={() => setShowInspector(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg"
-                  title="إغلاق الخصائص"
+                  onClick={() => setRightTab(null)}
+                  className="p-1 hover:bg-white/20 rounded text-white"
+                  title="Close Drawer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Component Info Card */}
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs">
-                <span className="text-purple-400 font-bold block">{selectedComp.nameAr}</span>
-                <span className="text-slate-400 font-mono text-[10px] block">{selectedComp.name}</span>
-                <div className="pt-2 border-t border-slate-900 grid grid-cols-2 gap-2 text-[11px]">
-                  <div>
-                    <span className="text-slate-500 block">هبوط الجهد:</span>
-                    <span className="font-mono text-emerald-400 font-bold">
-                      {(selectedComp.voltageDrop || 0).toFixed(2)} V
-                    </span>
+              {/* 1. Assistant Tab */}
+              {rightTab === 'assistant' && (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <div className="bg-[#f0f0f0] border-b border-[#aca899] px-2 py-1 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700">Sample Circuits Catalog</span>
+                    <button
+                      onClick={() => handleLoadSample(CW_SAMPLE_CIRCUITS[0])}
+                      className="text-[10px] text-blue-700 hover:underline font-bold"
+                    >
+                      Default
+                    </button>
                   </div>
-                  <div>
-                    <span className="text-slate-500 block">التيار المار:</span>
-                    <span className="font-mono text-amber-400 font-bold">
-                      {((selectedComp.currentThrough || 0) * 1000).toFixed(1)} mA
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Value Tuning (Resistor Ω, Battery V, Potentiometer, etc.) */}
-              {(selectedComp.kind === 'resistor' || selectedComp.kind === 'battery' || selectedComp.kind === 'dc_source') && (
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-300 font-medium block">
-                    القيمة ({selectedComp.unit}):
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedComp.value}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setElements((prev) =>
-                        prev.map((c) =>
-                          c.id === selectedComp.id
-                            ? { ...c, value: val, label: `${val}${c.unit}` }
-                            : c
-                        )
-                      );
-                    }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                  />
-
-                  {/* Resistor Color Bands Preview */}
-                  {selectedComp.kind === 'resistor' && (
-                    <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
-                      <span className="text-[10px] text-slate-400 block">حلقات الألوان القياسية للمقاومة:</span>
-                      <div className="flex items-center gap-1.5 h-4 justify-center">
-                        {getResistorColorBands(selectedComp.value).map((b, idx) => (
-                          <div
-                            key={idx}
-                            className="w-3.5 h-full rounded-sm border border-slate-700"
-                            style={{ backgroundColor: b }}
-                          />
-                        ))}
+                  <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-[#ffffff] text-slate-900 text-xs font-['Segoe_UI',sans-serif]">
+                    <div className="flex items-start gap-2.5 pb-2 border-b border-slate-200">
+                      <div className="w-8 h-8 bg-amber-100 rounded p-1 flex items-center justify-center shrink-0 border border-amber-300">
+                        <Folder className="w-4 h-4 text-amber-600 fill-amber-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-xs text-slate-900">Sample Circuits</h3>
+                        <p className="text-[10px] text-slate-500 leading-tight">
+                          Select any pre-built experiment to load instantly onto the canvas.
+                        </p>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
 
-              {/* LDR Lux Light Slider */}
-              {selectedComp.kind === 'ldr' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-300">شدة الإضاءة:</span>
-                    <span className="font-mono text-amber-400">{selectedComp.setting || 50}%</span>
+                    <div className="space-y-1">
+                      <div>
+                        <div
+                          onClick={() =>
+                            setExpandedFolders((prev) => ({
+                              ...prev,
+                              'Elementary Circuits': !prev['Elementary Circuits']
+                            }))
+                          }
+                          className="flex items-center gap-1.5 font-bold text-blue-800 hover:text-blue-900 cursor-pointer py-1"
+                        >
+                          {expandedFolders['Elementary Circuits'] ? (
+                            <FolderOpen className="w-4 h-4 text-amber-500 fill-amber-400" />
+                          ) : (
+                            <Folder className="w-4 h-4 text-amber-500 fill-amber-400" />
+                          )}
+                          <span>Elementary Circuits</span>
+                        </div>
+
+                        {expandedFolders['Elementary Circuits'] && (
+                          <div className="ml-4 pl-2 border-l border-slate-200 space-y-1.5 text-[11px]">
+                            {CW_SAMPLE_CIRCUITS.map((circuit) => (
+                              <button
+                                key={circuit.id}
+                                onClick={() => handleLoadSample(circuit)}
+                                className={`w-full text-left px-2 py-1 rounded flex items-center justify-between gap-1.5 transition ${
+                                  activeCircuit.id === circuit.id
+                                    ? 'bg-blue-100 font-bold text-blue-900 border border-blue-300'
+                                    : 'hover:bg-slate-100 text-slate-800'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                                  <span className="truncate">{circuit.title}</span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 shrink-0">{circuit.fileName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={selectedComp.setting || 50}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setElements((prev) =>
-                        prev.map((c) => (c.id === selectedComp.id ? { ...c, setting: val } : c))
-                      );
-                    }}
-                    className="w-full accent-amber-500"
-                  />
-                  <span className="text-[10px] text-slate-500 block">
-                    (في الظلام تزداد المقاومة، وعند الضوء تقل المقاومة)
-                  </span>
                 </div>
               )}
 
-              {/* Potentiometer Rotary Slider */}
-              {selectedComp.kind === 'potentiometer' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-300">موضع المنزلقة:</span>
-                    <span className="font-mono text-purple-400">{selectedComp.setting || 50}%</span>
+              {/* 2. Gallery Tab: Components Palette (لوحة المكونات) */}
+              {rightTab === 'gallery' && (
+                <div className="flex-1 flex flex-col overflow-hidden bg-white">
+                  <div className="p-2 border-b border-[#aca899] bg-[#f0f0f0]">
+                    <select
+                      value={gallerySelectedCategory}
+                      onChange={(e) => setGallerySelectedCategory(e.target.value)}
+                      className="w-full bg-white border border-[#7a7a7a] px-2 py-1 text-xs rounded font-medium focus:outline-none"
+                    >
+                      {GALLERY_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={selectedComp.setting || 50}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setElements((prev) =>
-                        prev.map((c) => (c.id === selectedComp.id ? { ...c, setting: val } : c))
-                      );
-                    }}
-                    className="w-full accent-purple-600"
-                  />
-                </div>
-              )}
 
-              {/* LED Color Picker */}
-              {selectedComp.kind === 'led' && (
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-300 font-medium block">لون الدايود LED:</label>
-                  <div className="flex items-center gap-2">
-                    {[
-                      { hex: '#ef4444', label: 'أحمر' },
-                      { hex: '#22c55e', label: 'أخضر' },
-                      { hex: '#3b82f6', label: 'أزرق' },
-                      { hex: '#eab308', label: 'أصفر' },
-                      { hex: '#ffffff', label: 'أبيض' }
-                    ].map((col) => (
-                      <button
-                        key={col.hex}
-                        onClick={() => {
-                          setElements((prev) =>
-                            prev.map((c) =>
-                              c.id === selectedComp.id ? { ...c, color: col.hex } : c
-                            )
-                          );
+                  <div className="flex-1 p-2 overflow-y-auto space-y-1.5 text-xs">
+                    <div className="text-[10px] text-slate-500 px-1 font-semibold uppercase">
+                      Drag to canvas or click + Add:
+                    </div>
+                    {GALLERY_ITEMS.filter((item) => item.category === gallerySelectedCategory).map((item) => (
+                      <div
+                        key={item.name}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify(item));
                         }}
-                        className={`w-6 h-6 rounded-full border-2 transition ${
-                          selectedComp.color === col.hex ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: col.hex }}
-                        title={col.label}
-                      />
+                        onClick={() => handleAddComponent(item)}
+                        className="p-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 rounded cursor-grab active:cursor-grabbing flex items-center justify-between transition group"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 text-[11px] group-hover:text-blue-800 truncate">
+                            {item.name}
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate">{item.nameAr}</div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddComponent(item);
+                          }}
+                          className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded shrink-0"
+                        >
+                          + Add
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Switch Toggle State Button */}
-              {(selectedComp.kind === 'switch_spst' || selectedComp.kind === 'push_button' || selectedComp.kind === 'push_button_nc') && (
-                <button
-                  onClick={() => {
-                    if (soundEnabled) audioEngine.playRelayClick();
-                    setElements((prev) =>
-                      prev.map((c) =>
-                        c.id === selectedComp.id ? { ...c, state: !c.state } : c
-                      )
-                    );
-                  }}
-                  className={`w-full py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                    selectedComp.state
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  <Zap className="w-4 h-4" />
-                  <span>{selectedComp.state ? 'الحالة: مغلَق (ON)' : 'الحالة: مفتوح (OFF)'}</span>
-                </button>
-              )}
             </div>
-
-            {/* Quick Component Actions */}
-            <div className="pt-3 border-t border-slate-800 grid grid-cols-2 gap-2">
-              <button
-                onClick={handleRotateSelected}
-                className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1"
-              >
-                <RotateCw className="w-3.5 h-3.5" />
-                <span>تدوير</span>
-              </button>
-              <button
-                onClick={handleDeleteSelected}
-                className="py-1.5 bg-red-950/60 hover:bg-red-900 text-red-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>حذف</span>
-              </button>
-            </div>
-          </div>
+          </>
         )}
+
+        {/* ====================================================== */}
+        {/* Right Vertical Tab Strip Handles                       */}
+        {/* ====================================================== */}
+        <div className="w-6 sm:w-7 bg-[#ece9d8] border-l border-[#aca899] flex flex-col items-center py-2 gap-2 shrink-0 select-none z-20">
+          <button
+            onClick={() => setRightTab(rightTab === 'assistant' ? null : 'assistant')}
+            className={`w-5 sm:w-6 py-2.5 rounded-xs flex items-center justify-center border transition ${
+              rightTab === 'assistant'
+                ? 'bg-[#ffffff] border-[#7a7a7a] font-bold text-blue-800 shadow-inner'
+                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#ffffff] text-slate-700'
+            }`}
+            title="Sample Circuits Assistant"
+          >
+            <span className="text-[9px] sm:text-[10px] tracking-wider writing-vertical transform rotate-180 font-semibold">
+              Assistant
+            </span>
+          </button>
+
+          <button
+            onClick={() => setRightTab(rightTab === 'gallery' ? null : 'gallery')}
+            className={`w-5 sm:w-6 py-2.5 rounded-xs flex items-center justify-center border transition ${
+              rightTab === 'gallery'
+                ? 'bg-[#ffffff] border-[#7a7a7a] font-bold text-blue-800 shadow-inner'
+                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#ffffff] text-slate-700'
+            }`}
+            title="Component Gallery (لوحة المكونات)"
+          >
+            <span className="text-[9px] sm:text-[10px] tracking-wider writing-vertical transform rotate-180 font-semibold">
+              Gallery
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Preset Circuits Modal */}
-      {showPresetsModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      {/* ======================================================== */}
+      {/* 7. Bottom Sheet Tabs: Sheet Name | Bill of Materials     */}
+      {/* ======================================================== */}
+      <div className="bg-[#ece9d8] border-t border-[#aca899] px-2 py-0.5 sm:py-1 flex items-center justify-between text-[11px] text-slate-800 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1">
+          <div className="flex items-center text-slate-500 font-bold px-1 select-none text-[10px]">
+            ◀ ▶
+          </div>
+
+          <button
+            onClick={() => setBottomTab('circuit')}
+            className={`px-2.5 sm:px-3 py-1 font-bold border-t-2 transition rounded-t-xs whitespace-nowrap text-xs ${
+              bottomTab === 'circuit'
+                ? 'bg-white text-blue-800 border-blue-600 shadow-xs'
+                : 'bg-[#dfdfdf] hover:bg-white text-slate-700 border-transparent'
+            }`}
+          >
+            {activeCircuit.sheetTitle}
+          </button>
+
+          <button
+            onClick={() => setBottomTab('bom')}
+            className={`px-2.5 sm:px-3 py-1 font-bold border-t-2 transition rounded-t-xs whitespace-nowrap text-xs ${
+              bottomTab === 'bom'
+                ? 'bg-white text-blue-800 border-blue-600 shadow-xs'
+                : 'bg-[#dfdfdf] hover:bg-white text-slate-700 border-transparent'
+            }`}
+          >
+            Bill of Materials ({elements.length})
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-[10px] text-slate-600 font-medium shrink-0">
+          <span className="hidden sm:inline">Zoom: {zoomPercent}%</span>
+          <span className="hidden md:inline">Mode: {mode.toUpperCase()}</span>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 8. Bottom Status Bar: Press F1 for help | 100% | Ready   */}
+      {/* ======================================================== */}
+      <div className="bg-[#ece9d8] border-t border-[#aca899] px-3 py-0.5 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-700 shrink-0 select-none">
+        <div className="flex items-center gap-2">
+          <span>Press F1 for help</span>
+        </div>
+
+        <div className="flex items-center gap-3 sm:gap-4 text-[10px]">
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500 hidden sm:inline">Zoom:</span>
+            <span className="font-bold">{zoomPercent}%</span>
+          </div>
+
+          <div className="border-l border-[#aca899] pl-2 sm:pl-3 flex items-center gap-1">
+            <span className="text-slate-500 hidden sm:inline">
+              {selectedComp ? `${selectedComp.ref} (${selectedComp.name})` : '(Ready)'}
+            </span>
+          </div>
+
+          <div className="border-l border-[#aca899] pl-2 sm:pl-3 flex items-center gap-1.5">
+            {isSimulating && !isPaused ? (
+              <span className="text-emerald-700 font-bold flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Simulating (Run)</span>
+              </span>
+            ) : isPaused ? (
+              <span className="text-amber-700 font-bold">Paused</span>
+            ) : (
+              <span className="text-slate-600 font-bold">Stopped</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 9. Bill of Materials Modal View (BOM)                    */}
+      {/* ======================================================== */}
+      {bottomTab === 'bom' && (
+        <div className="absolute inset-0 bg-white/95 backdrop-blur-xs z-50 p-4 sm:p-6 flex flex-col space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-300 pb-2">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                Bill of Materials (BOM) — {activeCircuit.title}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                قائمة حصر المكونات الكهربائية والإلكترونية للتجربة الحالية
+              </p>
+            </div>
+            <button
+              onClick={() => setBottomTab('circuit')}
+              className="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded hover:bg-blue-700"
+            >
+              Back to Circuit Sheet
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto border border-slate-200 rounded">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700">
+                  <th className="p-2 font-bold">Reference</th>
+                  <th className="p-2 font-bold">Component Name</th>
+                  <th className="p-2 font-bold">Specification</th>
+                  <th className="p-2 font-bold">Qty</th>
+                  <th className="p-2 font-bold hidden sm:table-cell">Arabic Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {elements.map((el) => (
+                  <tr key={el.id} className="hover:bg-blue-50/50">
+                    <td className="p-2 font-mono font-bold text-blue-700">{el.ref}</td>
+                    <td className="p-2 font-semibold">{el.name}</td>
+                    <td className="p-2 font-mono">{el.value} {el.unit}</td>
+                    <td className="p-2">1</td>
+                    <td className="p-2 text-slate-600 hidden sm:table-cell">{el.nameAr}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 10. New Project Dialog Modal ("انشاء مشروع جديد")       */}
+      {/* ======================================================== */}
+      {showNewProjectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+          <div className="bg-white rounded-lg shadow-2xl border border-slate-300 w-full max-w-md overflow-hidden">
+            <div className="bg-gradient-to-r from-[#0a246a] to-[#0055ea] text-white px-4 py-2.5 flex items-center justify-between font-bold text-sm">
               <div className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-purple-400" />
-                <h3 className="text-base font-bold text-white">مكتبة تجارب ودوائر Circuit Wizard المنهجية</h3>
+                <FilePlus className="w-4 h-4 text-amber-300" />
+                <span>New Project (إنشاء مشروع جديد)</span>
               </div>
-              <button onClick={() => setShowPresetsModal(false)} className="text-slate-400 hover:text-white">
-                ✕
+              <button
+                onClick={() => setShowNewProjectModal(false)}
+                className="text-white/80 hover:text-white"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
-              اختر أي تجربة معملية لتحميل مخطط الدائرة فورياً إلى مساحة العمل وبدء المحاكاة والقياس:
-            </p>
+            <div className="p-4 space-y-3 text-xs text-slate-800">
+              <p className="text-slate-600">
+                اختر نوع المشروع الذي ترغب ببدء العمل عليه في محاكي سيركت ويزارد:
+              </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
-              {PRESET_CIRCUITS.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => handleLoadPreset(p)}
-                  className="bg-slate-950 hover:bg-slate-800/80 p-4 rounded-2xl border border-slate-800 hover:border-purple-500/50 cursor-pointer transition space-y-2 group"
+              <div className="space-y-2">
+                {/* 1. Blank Project */}
+                <button
+                  onClick={handleStartBlankProject}
+                  className="w-full p-3 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/70 rounded text-left transition flex items-center justify-between group"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-slate-100 group-hover:text-purple-300 transition">
-                      {p.title}
-                    </span>
-                    <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-purple-400 transition" />
+                  <div>
+                    <div className="font-bold text-slate-900 group-hover:text-blue-800 text-sm">
+                      1. Blank Project (مشروع فارغ جديد)
+                    </div>
+                    <div className="text-slate-500 text-[11px] mt-0.5">
+                      صفحة عمل بيضاء فارغة تماماً لإضافة وسحب المكونات والتوصيل بحرية.
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">{p.desc}</p>
-                  <div className="text-[10px] text-slate-500 flex items-center gap-2 pt-1">
-                    <span>عدد المكونات: {p.components.length}</span>
-                    <span>•</span>
-                    <span>الأسلاك: {p.wires.length}</span>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0" />
+                </button>
+
+                {/* 2. Breadboard Starter */}
+                <button
+                  onClick={handleStartBreadboardProject}
+                  className="w-full p-3 border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/70 rounded text-left transition flex items-center justify-between group"
+                >
+                  <div>
+                    <div className="font-bold text-slate-900 group-hover:text-emerald-800 text-sm">
+                      2. Project with Breadboard (مشروع مع لوحة تجارب)
+                    </div>
+                    <div className="text-slate-500 text-[11px] mt-0.5">
+                      لوحة تجميع التجارب (Breadboard) جاهزة مع مصدر طاقة ومكونات.
+                    </div>
                   </div>
-                </div>
-              ))}
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                </button>
+
+                {/* 3. Default Bulb Circuit */}
+                <button
+                  onClick={() => handleLoadSample(CW_SAMPLE_CIRCUITS[0])}
+                  className="w-full p-3 border border-slate-200 hover:border-amber-500 hover:bg-amber-50/70 rounded text-left transition flex items-center justify-between group"
+                >
+                  <div>
+                    <div className="font-bold text-slate-900 group-hover:text-amber-800 text-sm">
+                      3. Bulb Circuit (دائرة المصباح والمفتاح الافتراضية)
+                    </div>
+                    <div className="text-slate-500 text-[11px] mt-0.5">
+                      دائرة سيركت ويزارد الكلاسيكية (بطارية 1.5V، مفتاح SW1، مصباح توهج).
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 shrink-0" />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 px-4 py-2 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setShowNewProjectModal(false)}
+                className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-xs"
+              >
+                Cancel (إلغاء)
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Student Lab Report Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-base font-bold text-white">إصدار تقرير التجربة المعملية (Lab Report)</h3>
-              </div>
-              <button onClick={() => setShowReportModal(false)} className="text-slate-400 hover:text-white">
-                ✕
+      {/* ======================================================== */}
+      {/* 11. Component Properties Modal (تعديل خصائص المكون)      */}
+      {/* ======================================================== */}
+      {showPropertiesModal && editingComp && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+          <div className="bg-white rounded-lg shadow-2xl border border-slate-300 w-full max-w-sm overflow-hidden text-xs">
+            <div className="bg-gradient-to-r from-[#0a246a] to-[#0055ea] text-white px-3.5 py-2 flex items-center justify-between font-bold">
+              <span>Properties — {editingComp.ref}</span>
+              <button onClick={() => setShowPropertiesModal(false)} className="text-white/80 hover:text-white">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="p-4 space-y-3">
               <div>
-                <label className="text-slate-400 block mb-1">اسم الطالب المهندس:</label>
+                <label className="block font-bold text-slate-700 mb-1">Component Name:</label>
                 <input
                   type="text"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white"
-                />
-              </div>
-              <div>
-                <label className="text-slate-400 block mb-1">الجامعة / الكلية:</label>
-                <input
-                  type="text"
-                  value={universityName}
-                  onChange={(e) => setUniversityName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white"
+                  value={editingComp.name}
+                  onChange={(e) => setEditingComp({ ...editingComp, name: e.target.value })}
+                  className="w-full px-2 py-1 border border-slate-300 rounded font-medium"
                 />
               </div>
 
-              {/* Results summary table */}
-              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
-                <span className="font-bold text-slate-200 block">ملخص قياسات الدائرة الحالية:</span>
-                <div className="max-h-36 overflow-y-auto space-y-1">
-                  {elements.map((el) => (
-                    <div key={el.id} className="flex justify-between text-[11px] border-b border-slate-900 pb-1">
-                      <span className="text-slate-300">{el.nameAr}:</span>
-                      <span className="font-mono text-emerald-400">
-                        {el.voltageDrop ? `${el.voltageDrop.toFixed(2)}V` : '0V'} |{' '}
-                        {el.currentThrough ? `${(el.currentThrough * 1000).toFixed(1)}mA` : '0mA'}
-                      </span>
-                    </div>
-                  ))}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Value & Specification:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={editingComp.value}
+                    onChange={(e) => setEditingComp({ ...editingComp, value: parseFloat(e.target.value) || 0 })}
+                    className="flex-1 px-2 py-1 border border-slate-300 rounded font-mono font-bold"
+                  />
+                  <input
+                    type="text"
+                    value={editingComp.unit}
+                    onChange={(e) => setEditingComp({ ...editingComp, unit: e.target.value })}
+                    className="w-16 px-2 py-1 border border-slate-300 rounded font-mono"
+                  />
                 </div>
               </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Rotation Angle:</label>
+                <select
+                  value={editingComp.rotation || 0}
+                  onChange={(e) => setEditingComp({ ...editingComp, rotation: parseInt(e.target.value, 10) })}
+                  className="w-full px-2 py-1 border border-slate-300 rounded"
+                >
+                  <option value={0}>0° (Normal Horizontal)</option>
+                  <option value={90}>90° (Vertical)</option>
+                  <option value={180}>180° (Inverted)</option>
+                  <option value={270}>270° (Vertical Inverted)</option>
+                </select>
+              </div>
+
+              {editingComp.kind === 'led' && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">LED Color:</label>
+                  <div className="flex gap-2">
+                    {['#ef4444', '#22c55e', '#3b82f6', '#eab308'].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setEditingComp({ ...editingComp, color: c })}
+                        className={`w-6 h-6 rounded-full border ${editingComp.color === c ? 'ring-2 ring-blue-600 scale-110' : 'border-slate-300'}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+            <div className="bg-slate-50 px-3 py-2 border-t border-slate-200 flex justify-end gap-2">
               <button
-                onClick={() => setShowReportModal(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                onClick={() => setShowPropertiesModal(false)}
+                className="px-3 py-1 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 font-bold"
               >
-                إغلاق
+                Cancel
               </button>
               <button
                 onClick={() => {
-                  window.print();
+                  setElements((prev) => prev.map((el) => (el.id === editingComp.id ? editingComp : el)));
+                  setShowPropertiesModal(false);
                 }}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20"
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded"
               >
-                <FileDown className="w-4 h-4" />
-                <span>طباعة أو حفظ التقرير PDF</span>
+                Apply (تطبيق)
               </button>
             </div>
           </div>
@@ -2577,397 +2888,4 @@ export function CircuitWizardLab() {
       )}
     </div>
   );
-}
-
-// --- Component Card in Library ---
-function ComponentCard({
-  name,
-  nameAr,
-  icon,
-  onClick
-}: {
-  name: string;
-  nameAr: string;
-  icon: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full bg-slate-950 hover:bg-purple-950/40 border border-slate-800 hover:border-purple-500/50 p-2.5 rounded-xl flex items-center gap-2.5 transition text-right group shadow-sm"
-    >
-      <span className="text-xl group-hover:scale-110 transition shrink-0">{icon}</span>
-      <div className="truncate">
-        <span className="block text-xs font-bold text-slate-200 group-hover:text-white truncate">
-          {nameAr}
-        </span>
-        <span className="block text-[10px] font-mono text-slate-500 truncate">{name}</span>
-      </div>
-    </button>
-  );
-}
-
-// --- Real-World Component Renderer (Pictorial Mode) ---
-function RealWorldComponentRenderer({
-  comp,
-  tick
-}: {
-  comp: CircuitElement;
-  tick: number;
-}) {
-  switch (comp.kind) {
-    case 'battery':
-      return (
-        <g>
-          <rect x="-30" y="-18" width="60" height="36" rx="4" fill="#1e293b" stroke="#334155" strokeWidth="2" />
-          <rect x="28" y="-6" width="6" height="12" fill="#94a3b8" rx="1" />
-          <rect x="-34" y="-8" width="6" height="16" fill="#cbd5e1" rx="1" />
-          <rect x="-24" y="-14" width="48" height="28" rx="2" fill="#0f172a" />
-          <text x="0" y="2" textAnchor="middle" fill="#f59e0b" fontSize="10" fontWeight="900" fontFamily="sans-serif">
-            {comp.value}V
-          </text>
-          <text x="0" y="10" textAnchor="middle" fill="#64748b" fontSize="6">
-            9V BATTERY
-          </text>
-        </g>
-      );
-
-    case 'battery_aa':
-      return (
-        <g>
-          <rect x="-26" y="-12" width="52" height="24" rx="3" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-          <rect x="24" y="-5" width="4" height="10" fill="#cbd5e1" rx="1" />
-          <rect x="-18" y="-10" width="36" height="20" fill="#f59e0b" rx="2" />
-          <text x="0" y="3" textAnchor="middle" fill="#0f172a" fontSize="8" fontWeight="bold">
-            1.5V AA
-          </text>
-        </g>
-      );
-
-    case 'battery_18650':
-      return (
-        <g>
-          <rect x="-32" y="-14" width="64" height="28" rx="6" fill="#0284c7" stroke="#38bdf8" strokeWidth="1.5" />
-          <rect x="30" y="-6" width="4" height="12" fill="#cbd5e1" rx="1" />
-          <text x="0" y="3" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold">
-            18650 3.7V
-          </text>
-        </g>
-      );
-
-    case 'solar_cell':
-      return (
-        <g>
-          <rect x="-32" y="-22" width="64" height="44" rx="3" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="1.5" />
-          <line x1="-32" y1="-7" x2="32" y2="-7" stroke="#93c5fd" strokeWidth="1" />
-          <line x1="-32" y1="8" x2="32" y2="8" stroke="#93c5fd" strokeWidth="1" />
-          <line x1="-10" y1="-22" x2="-10" y2="22" stroke="#93c5fd" strokeWidth="1" />
-          <line x1="10" y1="-22" x2="10" y2="22" stroke="#93c5fd" strokeWidth="1" />
-          <circle cx="0" cy="0" r="8" fill="#facc15" opacity="0.3" className="animate-pulse" />
-        </g>
-      );
-
-    case 'resistor': {
-      const bands = getResistorColorBands(comp.value);
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-22" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="22" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <rect x="-22" y="-9" width="44" height="18" rx="5" fill="#fde68a" stroke="#d97706" strokeWidth="1" />
-          <rect x="-14" y="-9" width="4" height="18" fill={bands[0]} />
-          <rect x="-6" y="-9" width="4" height="18" fill={bands[1]} />
-          <rect x="2" y="-9" width="4" height="18" fill={bands[2]} />
-          <rect x="11" y="-9" width="3" height="18" fill={bands[3]} />
-        </g>
-      );
-    }
-
-    case 'capacitor_electrolytic':
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-18" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="18" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <rect x="-18" y="-14" width="36" height="28" rx="4" fill="#1e3a8a" stroke="#3b82f6" strokeWidth="1.5" />
-          {/* Negative stripe */}
-          <rect x="8" y="-14" width="8" height="28" fill="#cbd5e1" />
-          <text x="12" y="3" textAnchor="middle" fill="#0f172a" fontSize="8" fontWeight="bold">
-            -
-          </text>
-          <text x="-4" y="2" textAnchor="middle" fill="#ffffff" fontSize="7" fontWeight="bold">
-            100µF
-          </text>
-        </g>
-      );
-
-    case 'capacitor':
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-12" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="12" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <circle cx="0" cy="0" r="14" fill="#f59e0b" stroke="#d97706" strokeWidth="1.5" />
-          <text x="0" y="3" textAnchor="middle" fill="#78350f" fontSize="7" fontWeight="bold">
-            104
-          </text>
-        </g>
-      );
-
-    case 'led': {
-      const isLit = (comp.currentThrough || 0) > 0.002;
-      const ledColor = comp.color || '#ef4444';
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-12" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="12" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          {isLit && (
-            <circle cx="0" cy="0" r="26" fill={ledColor} opacity="0.35" className="animate-pulse" />
-          )}
-          <ellipse
-            cx="0"
-            cy="0"
-            rx="12"
-            ry="10"
-            fill={isLit ? ledColor : '#334155'}
-            stroke={isLit ? '#ffffff' : '#64748b'}
-            strokeWidth="1.5"
-          />
-          <line x1="-3" y1="-4" x2="4" y2="4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
-        </g>
-      );
-    }
-
-    case 'dc_motor': {
-      const isSpinning = (comp.motorSpeed || 0) > 0;
-      const rotorAngle = isSpinning ? (tick * 45) % 360 : 0;
-      return (
-        <g>
-          <rect x="-35" y="-5" width="8" height="10" fill="#94a3b8" />
-          <rect x="27" y="-5" width="8" height="10" fill="#94a3b8" />
-          <circle cx="0" cy="0" r="22" fill="#475569" stroke="#94a3b8" strokeWidth="2" />
-          <circle cx="0" cy="0" r="15" fill="#334155" />
-          <g transform={`rotate(${rotorAngle})`}>
-            <ellipse cx="0" cy="0" rx="4" ry="14" fill="#38bdf8" />
-            <ellipse cx="0" cy="0" rx="14" ry="4" fill="#38bdf8" />
-            <circle cx="0" cy="0" r="3" fill="#ffffff" />
-          </g>
-        </g>
-      );
-    }
-
-    case 'lamp': {
-      const isGlowing = (comp.voltageDrop || 0) > 1.5;
-      return (
-        <g>
-          <line x1="-30" y1="0" x2="-14" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="14" y1="0" x2="30" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          {isGlowing && (
-            <circle cx="0" cy="0" r="26" fill="#fde047" opacity="0.4" className="animate-pulse" />
-          )}
-          <circle cx="0" cy="0" r="14" fill={isGlowing ? '#fef08a' : '#1e293b'} stroke="#e2e8f0" strokeWidth="1.5" />
-          <path d="M -6 5 L 0 -5 L 6 5" fill="none" stroke={isGlowing ? '#ea580c' : '#64748b'} strokeWidth="1.5" />
-        </g>
-      );
-    }
-
-    case 'push_button':
-    case 'switch_spst': {
-      const closed = comp.state === true;
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-16" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="16" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <rect x="-16" y="-12" width="32" height="24" rx="4" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-          <circle cx={closed ? '5' : '-5'} cy="0" r="6" fill={closed ? '#22c55e' : '#ef4444'} />
-          <text x="0" y="3" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="bold">
-            {closed ? 'ON' : 'OFF'}
-          </text>
-        </g>
-      );
-    }
-
-    case 'buzzer': {
-      const active = comp.buzzerActive;
-      return (
-        <g>
-          <line x1="-25" y1="0" x2="-16" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="16" y1="0" x2="25" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <circle cx="0" cy="0" r="16" fill="#0f172a" stroke="#475569" strokeWidth="2" />
-          <circle cx="0" cy="0" r="6" fill="#334155" />
-          {active && (
-            <g stroke="#38bdf8" strokeWidth="1.5" fill="none" className="animate-ping opacity-60">
-              <path d="M 18 -8 A 12 12 0 0 1 18 8" />
-              <path d="M 22 -12 A 18 18 0 0 1 22 12" />
-            </g>
-          )}
-        </g>
-      );
-    }
-
-    case 'relay':
-      return (
-        <g>
-          <rect x="-30" y="-22" width="60" height="44" rx="4" fill="#1d4ed8" stroke="#60a5fa" strokeWidth="1.5" />
-          <text x="0" y="-8" textAnchor="middle" fill="#ffffff" fontSize="7" fontWeight="bold">
-            RELAY 12V
-          </text>
-          <path d="M -15 8 L -5 8 L 0 0 L 5 8 L 15 8" fill="none" stroke="#93c5fd" strokeWidth="1.5" />
-        </g>
-      );
-
-    case 'ic_555':
-      return (
-        <g>
-          <rect x="-35" y="-30" width="70" height="60" rx="3" fill="#0f172a" stroke="#334155" strokeWidth="2" />
-          <path d="M -8 -30 A 8 8 0 0 1 8 -30" fill="#1e293b" stroke="#334155" strokeWidth="1.5" />
-          <circle cx="-25" cy="-20" r="2" fill="#64748b" />
-          <text x="0" y="2" textAnchor="middle" fill="#e2e8f0" fontSize="8" fontWeight="bold">
-            NE555
-          </text>
-        </g>
-      );
-
-    case 'voltmeter':
-      return (
-        <g>
-          <circle cx="0" cy="0" r="20" fill="#0f172a" stroke="#f59e0b" strokeWidth="2" />
-          <text x="0" y="-3" textAnchor="middle" fill="#f59e0b" fontSize="8" fontWeight="bold">
-            {(comp.voltageDrop || 0).toFixed(2)}
-          </text>
-          <text x="0" y="8" textAnchor="middle" fill="#94a3b8" fontSize="7" fontWeight="bold">
-            VOLTS
-          </text>
-        </g>
-      );
-
-    case 'oscilloscope': {
-      const points = [];
-      for (let i = -16; i <= 16; i += 2) {
-        const y = Math.sin((i + tick * 4) * 0.3) * 8;
-        points.push(`${i},${y}`);
-      }
-      return (
-        <g>
-          <rect x="-24" y="-18" width="48" height="36" rx="4" fill="#022c22" stroke="#10b981" strokeWidth="1.5" />
-          <polyline points={points.join(' ')} fill="none" stroke="#34d399" strokeWidth="1.5" />
-          <text x="0" y="14" textAnchor="middle" fill="#10b981" fontSize="6" fontWeight="bold">
-            SCOPE CH1
-          </text>
-        </g>
-      );
-    }
-
-    default:
-      return <SchematicComponentRenderer comp={comp} tick={tick} />;
-  }
-}
-
-// --- Schematic Component Renderer (Standard Symbols) ---
-function SchematicComponentRenderer({
-  comp,
-  tick
-}: {
-  comp: CircuitElement;
-  tick: number;
-}) {
-  switch (comp.kind) {
-    case 'battery':
-    case 'battery_aa':
-    case 'battery_18650':
-    case 'battery_lead_acid':
-    case 'dc_source':
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-8" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="8" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="8" y1="-16" x2="8" y2="16" stroke="#ef4444" strokeWidth="2.5" />
-          <line x1="-8" y1="-9" x2="-8" y2="9" stroke="#3b82f6" strokeWidth="4" />
-          <text x="14" y="-8" fill="#ef4444" fontSize="8" fontWeight="bold">+</text>
-          <text x="-18" y="-8" fill="#3b82f6" fontSize="8" fontWeight="bold">-</text>
-        </g>
-      );
-
-    case 'ground':
-      return (
-        <g>
-          <line x1="0" y1="-25" x2="0" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="-15" y1="0" x2="15" y2="0" stroke="#cbd5e1" strokeWidth="2.5" />
-          <line x1="-10" y1="5" x2="10" y2="5" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="-5" y1="10" x2="5" y2="10" stroke="#cbd5e1" strokeWidth="1.5" />
-        </g>
-      );
-
-    case 'resistor':
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-20" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="20" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <path
-            d="M -20 0 L -15 -8 L -7 8 L 0 -8 L 7 8 L 15 -8 L 20 0"
-            fill="none"
-            stroke="#e2e8f0"
-            strokeWidth="2"
-          />
-        </g>
-      );
-
-    case 'diode':
-    case 'led':
-      return (
-        <g>
-          <line x1="-35" y1="0" x2="-10" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="10" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <polygon points="-10,-10 -10,10 10,0" fill="#3b82f6" stroke="#e2e8f0" strokeWidth="1.5" />
-          <line x1="10" y1="-10" x2="10" y2="10" stroke="#e2e8f0" strokeWidth="2" />
-          {comp.kind === 'led' && (
-            <g stroke="#f59e0b" strokeWidth="1.5" fill="none">
-              <line x1="4" y1="-12" x2="10" y2="-18" />
-              <line x1="10" y1="-10" x2="16" y2="-16" />
-            </g>
-          )}
-        </g>
-      );
-
-    case 'transistor_npn':
-      return (
-        <g>
-          <circle cx="0" cy="0" r="18" fill="none" stroke="#64748b" strokeWidth="1.5" />
-          <line x1="-25" y1="0" x2="-8" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="-8" y1="-12" x2="-8" y2="12" stroke="#cbd5e1" strokeWidth="2.5" />
-          <line x1="-8" y1="-6" x2="18" y2="-16" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="-8" y1="6" x2="18" y2="16" stroke="#cbd5e1" strokeWidth="2" />
-          <polygon points="18,16 12,10 10,15" fill="#cbd5e1" />
-        </g>
-      );
-
-    case 'gate_and':
-      return (
-        <g>
-          <line x1="-35" y1="-15" x2="-15" y2="-15" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="-35" y1="15" x2="-15" y2="15" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="20" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M -15 -22 L 5 -22 A 22 22 0 0 1 5 22 L -15 22 Z" fill="#1e293b" stroke="#e2e8f0" strokeWidth="2" />
-        </g>
-      );
-
-    case 'opamp':
-      return (
-        <g>
-          <line x1="-35" y1="-15" x2="-16" y2="-15" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="-35" y1="15" x2="-16" y2="15" stroke="#cbd5e1" strokeWidth="2" />
-          <line x1="24" y1="0" x2="35" y2="0" stroke="#cbd5e1" strokeWidth="2" />
-          <polygon points="-16,-26 -16,26 24,0" fill="#1e293b" stroke="#e2e8f0" strokeWidth="2" />
-          <text x="-12" y="-11" fill="#cbd5e1" fontSize="10" fontWeight="bold">-</text>
-          <text x="-12" y="19" fill="#cbd5e1" fontSize="10" fontWeight="bold">+</text>
-        </g>
-      );
-
-    default:
-      return (
-        <g>
-          <rect x="-24" y="-16" width="48" height="32" rx="4" fill="#1e293b" stroke="#64748b" strokeWidth="1.5" />
-          <text x="0" y="3" textAnchor="middle" fill="#cbd5e1" fontSize="8" fontWeight="bold">
-            {comp.kind.toUpperCase()}
-          </text>
-        </g>
-      );
-  }
 }

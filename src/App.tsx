@@ -327,71 +327,75 @@ export default function App() {
           </div>
         )}
 
-        {/* Academic Years & Lab Modes Navigation Bar */}
-        <div className="border-t border-slate-800/80 bg-slate-950/60 px-2 sm:px-4">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between py-1.5 gap-2 text-xs">
-            {/* Academic Years Filter - Scrollable chips */}
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-              <span className="text-slate-400 font-semibold ml-1 shrink-0 text-[11px]">السنوات:</span>
-              <button
-                onClick={() => setSelectedYear('all')}
-                className={`px-2.5 py-1 rounded-lg transition font-medium shrink-0 text-xs ${
-                  selectedYear === 'all'
-                    ? 'bg-purple-600 text-white font-bold'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
-              >
-                الكل
-              </button>
-              {([1, 2, 3, 4, 5] as const).map(yr => (
+        {/* Academic Years (Shown for Curriculum) & Quick Instruments Bar */}
+        {(activeTab === 'curriculum' || showOscilloscope || showMultimeter || showPowerSupply) && (
+          <div className="border-t border-slate-800/80 bg-slate-950/60 px-2 sm:px-4">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between py-1.5 gap-2 text-xs">
+              {/* Academic Years Filter - Scrollable chips */}
+              {activeTab === 'curriculum' && (
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                  <span className="text-slate-400 font-semibold ml-1 shrink-0 text-[11px]">السنوات:</span>
+                  <button
+                    onClick={() => setSelectedYear('all')}
+                    className={`px-2.5 py-1 rounded-lg transition font-medium shrink-0 text-xs ${
+                      selectedYear === 'all'
+                        ? 'bg-purple-600 text-white font-bold'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    الكل
+                  </button>
+                  {([1, 2, 3, 4, 5] as const).map(yr => (
+                    <button
+                      key={yr}
+                      onClick={() => setSelectedYear(yr)}
+                      className={`px-2 py-1 rounded-lg transition font-medium whitespace-nowrap shrink-0 text-xs ${
+                        selectedYear === yr
+                          ? 'bg-purple-600 text-white font-bold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      {yr === 1 && 'س1 تأسيس'}
+                      {yr === 2 && 'س2 إلكترونيات'}
+                      {yr === 3 && 'س3 مشغلات'}
+                      {yr === 4 && 'س4 تحكم'}
+                      {yr === 5 && 'س5 روبوتات'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Quick Floating Instruments Toggle Drawer */}
+              <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px] overflow-x-auto no-scrollbar shrink-0">
+                <span className="text-slate-400 px-1 font-sans shrink-0 hidden sm:inline">أجهزة القياس:</span>
                 <button
-                  key={yr}
-                  onClick={() => setSelectedYear(yr)}
-                  className={`px-2 py-1 rounded-lg transition font-medium whitespace-nowrap shrink-0 text-xs ${
-                    selectedYear === yr
-                      ? 'bg-purple-600 text-white font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  onClick={() => setShowOscilloscope(!showOscilloscope)}
+                  className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
+                    showOscilloscope ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {yr === 1 && 'س1 تأسيس'}
-                  {yr === 2 && 'س2 إلكترونيات'}
-                  {yr === 3 && 'س3 مشغلات'}
-                  {yr === 4 && 'س4 تحكم'}
-                  {yr === 5 && 'س5 روبوتات'}
+                  الراسم (Scope)
                 </button>
-              ))}
-            </div>
-
-            {/* Quick Floating Instruments Toggle Drawer */}
-            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px] overflow-x-auto no-scrollbar shrink-0">
-              <span className="text-slate-400 px-1 font-sans shrink-0 hidden sm:inline">أجهزة:</span>
-              <button
-                onClick={() => setShowOscilloscope(!showOscilloscope)}
-                className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
-                  showOscilloscope ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                الراسم (Scope)
-              </button>
-              <button
-                onClick={() => setShowMultimeter(!showMultimeter)}
-                className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
-                  showMultimeter ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                الملتيميتر (DMM)
-              </button>
-              <button
-                onClick={() => setShowPowerSupply(!showPowerSupply)}
-                className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
-                  showPowerSupply ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                مجهز القدرة (DC)
-              </button>
+                <button
+                  onClick={() => setShowMultimeter(!showMultimeter)}
+                  className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
+                    showMultimeter ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  الملتيميتر (DMM)
+                </button>
+                <button
+                  onClick={() => setShowPowerSupply(!showPowerSupply)}
+                  className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
+                    showPowerSupply ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  مجهز القدرة (DC)
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Lab Mode Tabs Navigation - Responsive Touch Scrollable Bar */}
