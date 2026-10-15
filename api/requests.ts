@@ -1,4 +1,4 @@
-import { getPool, initDatabase } from '../lib/db';
+import { getPool, initDatabase } from './_db';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');

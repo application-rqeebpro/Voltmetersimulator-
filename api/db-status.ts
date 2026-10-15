@@ -1,4 +1,4 @@
-import { testDatabaseConnection, getDatabaseUrl, initDatabase, getPool, testReadWriteDatabase } from '../lib/db';
+import { testDatabaseConnection, getDatabaseUrl, initDatabase, getPool, testReadWriteDatabase } from './_db';
 
 export default async function handler(req: any, res: any) {
   // Set CORS headers
