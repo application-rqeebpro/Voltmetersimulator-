@@ -36,7 +36,9 @@ import {
   Loader2,
   Trash2,
   Edit3,
-  Filter
+  Filter,
+  Activity,
+  CheckCircle2
 } from 'lucide-react';
 import { StudentUser, Experiment, AcademicYear, LabCategory, AccessRequest } from '../types/mechatronics';
 import { authStorage, DEFAULT_OWNER_PASSWORD, MASTER_OWNER_PASSWORDS, NeonDbStatus } from '../services/authStorage';
@@ -118,45 +120,65 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   const [newSteps, setNewSteps] = useState<string>('1. قم بتوصيل التغذية\n2. ركب الإشارة بالمنفذ الرقمي\n3. اختبر الحركة بالمعمل');
   const [lessonFeedback, setLessonFeedback] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setIsLoadingDb(true);
+  const [isRefreshingRequests, setIsRefreshingRequests] = useState<boolean>(false);
+
+  const loadData = async (silentParam?: boolean | React.MouseEvent) => {
+    const silent = typeof silentParam === 'boolean' ? silentParam : false;
+    if (!silent) setIsLoadingDb(true);
     try {
       const [status, ownerData] = await Promise.all([
         authStorage.checkDatabaseStatus(),
         authStorage.getOwnerDataFromDatabase()
       ]);
       setNeonStatus(status);
-      if (ownerData.users && ownerData.users.length > 0) {
+
+      if (ownerData.success && Array.isArray(ownerData.users)) {
         setUsersList(ownerData.users);
-      } else {
+      } else if (!status.connected) {
         setUsersList(authStorage.getUsers());
-      }
-      if (ownerData.requests && ownerData.requests.length > 0) {
-        setAccessRequests(ownerData.requests);
       } else {
-        setAccessRequests(authStorage.getAccessRequests());
+        setUsersList(ownerData.users || []);
       }
+
+      if (ownerData.success && Array.isArray(ownerData.requests)) {
+        setAccessRequests(ownerData.requests);
+      } else if (!status.connected) {
+        setAccessRequests(authStorage.getAccessRequests());
+      } else {
+        setAccessRequests(ownerData.requests || []);
+      }
+
       if (ownerData.ownerPassword) {
         setCurrentOwnerPassword(ownerData.ownerPassword);
       }
     } catch (e) {
       console.warn('Error loading owner data from Neon DB:', e);
-      setUsersList(authStorage.getUsers());
-      setAccessRequests(authStorage.getAccessRequests());
+      if (!neonStatus?.connected) {
+        setUsersList(authStorage.getUsers());
+        setAccessRequests(authStorage.getAccessRequests());
+      }
     } finally {
-      setIsLoadingDb(false);
+      if (!silent) setIsLoadingDb(false);
+      setIsRefreshingRequests(false);
     }
   };
 
   useEffect(() => {
-    if (isOpen) {
-      loadData();
-      setActivationFeedback(null);
-      setLessonFeedback(null);
-      setPasswordFeedback(null);
-      setCopiedPass(false);
-      setRequestActionFeedback(null);
-    }
+    if (!isOpen) return;
+
+    loadData();
+    setActivationFeedback(null);
+    setLessonFeedback(null);
+    setPasswordFeedback(null);
+    setCopiedPass(false);
+    setRequestActionFeedback(null);
+
+    // Live background polling every 8 seconds so requests from any phone appear in real-time
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 8000);
+
+    return () => clearInterval(interval);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -250,6 +272,17 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
     const res = await authStorage.activateUserByPhoneInDatabase(reqItem.phone);
     if (res.success) {
       setRequestActionFeedback({ success: true, msg: `تمت الموافقة وتفعيل الطالب (${reqItem.name}) برقم ${reqItem.phone} في Neon بنجاح!` });
+      await loadData();
+    } else {
+      setRequestActionFeedback({ success: false, msg: res.message });
+    }
+  };
+
+  const handleRejectRequest = async (reqItem: AccessRequest) => {
+    setRequestActionFeedback(null);
+    const res = await authStorage.rejectRequestInDatabase(reqItem.id, reqItem.phone);
+    if (res.success) {
+      setRequestActionFeedback({ success: true, msg: `تم رفض طلب الطالب (${reqItem.name}) برقم ${reqItem.phone}.` });
       await loadData();
     } else {
       setRequestActionFeedback({ success: false, msg: res.message });
@@ -605,7 +638,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                   <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
                     <button
                       onClick={() => setRequestFilter('pending')}
@@ -632,6 +665,19 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                       الكل ({accessRequests.length})
                     </button>
                   </div>
+
+                  <button
+                    onClick={() => {
+                      setIsRefreshingRequests(true);
+                      loadData(false);
+                    }}
+                    disabled={isRefreshingRequests}
+                    className="px-2.5 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition flex items-center gap-1.5 font-bold text-[11px]"
+                    title="تحديث فوري من قاعدة بيانات Neon المشتركة"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingRequests ? 'animate-spin' : ''}`} />
+                    <span>تحديث الطلبات</span>
+                  </button>
                 </div>
               </div>
 
@@ -773,14 +819,24 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                             <td className="p-3 text-center">
                               <div className="flex items-center justify-center gap-1.5">
                                 {req.status === 'pending' && (
-                                  <button
-                                    onClick={() => handleApproveRequest(req)}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
-                                    title="تفعيل فوري للطالب"
-                                  >
-                                    <UserCheck className="w-3.5 h-3.5" />
-                                    <span>موافقة وتفعيل</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleApproveRequest(req)}
+                                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow"
+                                      title="تفعيل فوري للطالب"
+                                    >
+                                      <UserCheck className="w-3.5 h-3.5" />
+                                      <span>موافقة وتفعيل</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectRequest(req)}
+                                      className="px-2 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-bold transition flex items-center gap-1"
+                                      title="رفض الطلب"
+                                    >
+                                      <UserX className="w-3.5 h-3.5" />
+                                      <span>رفض</span>
+                                    </button>
+                                  </>
                                 )}
                                 <button
                                   onClick={() => handleQuickCreateForRequest(req)}

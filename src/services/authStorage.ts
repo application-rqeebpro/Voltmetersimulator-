@@ -138,13 +138,38 @@ export const authStorage = {
     }
   },
 
+  getOwnerToken(): string {
+    try {
+      const token = sessionStorage.getItem('owner_auth_token') || localStorage.getItem(OWNER_PASSWORD_STORAGE_KEY) || DEFAULT_OWNER_PASSWORD;
+      return token.trim();
+    } catch {
+      return DEFAULT_OWNER_PASSWORD;
+    }
+  },
+
+  setOwnerToken(token: string) {
+    try {
+      sessionStorage.setItem('owner_auth_token', token.trim());
+      localStorage.setItem(OWNER_PASSWORD_STORAGE_KEY, token.trim());
+    } catch {}
+  },
+
+  getOwnerHeaders(): Record<string, string> {
+    const token = this.getOwnerToken();
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'x-owner-password': token
+    };
+  },
+
   setOwnerPassword(newPassword: string): { success: boolean; message: string } {
     const clean = newPassword.trim();
     if (!clean || clean.length < 4) {
       return { success: false, message: 'يجب أن تتكون كلمة المرور من 4 أحرف أو أرقام على الأقل' };
     }
     try {
-      localStorage.setItem(OWNER_PASSWORD_STORAGE_KEY, clean);
+      this.setOwnerToken(clean);
       // Also sync to Neon DB in background
       this.updateOwnerPasswordInDatabase(clean).catch(() => {});
       return { success: true, message: `تم تحديث كلمة سر المالك بنجاح إلى: (${clean})` };
@@ -155,7 +180,7 @@ export const authStorage = {
 
   resetOwnerPassword(): { success: boolean; password: string } {
     try {
-      localStorage.removeItem(OWNER_PASSWORD_STORAGE_KEY);
+      this.setOwnerToken(DEFAULT_OWNER_PASSWORD);
       this.updateOwnerPasswordInDatabase(DEFAULT_OWNER_PASSWORD).catch(() => {});
     } catch {}
     return { success: true, password: DEFAULT_OWNER_PASSWORD };
@@ -204,7 +229,7 @@ export const authStorage = {
       const response = await fetch('/api/auth?action=login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone, password: cleanPass })
+        body: JSON.stringify({ action: 'login', phone: cleanPhone, password: cleanPass })
       });
 
       const data = await response.json();
@@ -239,7 +264,7 @@ export const authStorage = {
         };
       }
 
-      if (response.status === 401 || response.status === 403 || response.status === 404) {
+      if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 409) {
         return {
           success: false,
           message: data.message || 'بيانات الدخول غير صحيحة.',
@@ -247,10 +272,10 @@ export const authStorage = {
         };
       }
     } catch (e) {
-      console.warn('Network call to Neon DB failed, falling back to local storage cache:', e);
+      console.warn('Network call to Neon DB failed, checking local cache:', e);
     }
 
-    // Fallback to local storage if network is offline or server didn't respond
+    // Fallback to local storage if network is offline
     return this.loginUser(cleanPhone, cleanPass);
   },
 
@@ -315,6 +340,7 @@ export const authStorage = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'register',
           ...payload,
           phone: cleanPhone,
           name: cleanName,
@@ -339,7 +365,7 @@ export const authStorage = {
           success: true,
           user: data.user,
           requiresActivation: true,
-          message: data.message || 'تم حفظ طلب الاشتراك في قاعدة بيانات Neon المشتركة وإرساله للوحة المالك.',
+          message: data.message || 'تم حفظ طلبك بنجاح في قاعدة بيانات Neon المشتركة وإرساله للوحة المالك.',
           dbConnected: true
         };
       }
@@ -352,15 +378,61 @@ export const authStorage = {
         };
       }
 
-      if (data.message) {
-        return { success: false, message: data.message, dbConnected: true };
+      if (data.message || data.error) {
+        return { success: false, message: data.message || data.error, dbConnected: Boolean(data.dbConnected) };
       }
     } catch (e) {
-      console.warn('Network call to Neon DB failed during registration, saving locally:', e);
+      console.warn('Network call to /api/auth failed, attempting /api/requests fallback:', e);
+      try {
+        const reqRes = await fetch('/api/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: cleanPhone,
+            name: cleanName,
+            university: payload.university,
+            academicYear: payload.academicYear || 1,
+            isAcademySubscriber: payload.isAcademySubscriber,
+            deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'الهاتف'
+          })
+        });
+        const reqData = await reqRes.json();
+        if (reqRes.ok && reqData.success) {
+          const fallbackUser: StudentUser = {
+            id: reqData.requestId || `usr_${Date.now()}`,
+            name: cleanName,
+            phone: cleanPhone,
+            password: payload.password,
+            university: payload.university,
+            academicYear: payload.academicYear || 1,
+            isAcademySubscriber: payload.isAcademySubscriber,
+            isActivated: false,
+            registeredAt: new Date().toISOString().split('T')[0],
+            role: 'student'
+          };
+          const localUsers = this.getUsers();
+          localUsers.push(fallbackUser);
+          this.saveUsers(localUsers);
+
+          return {
+            success: true,
+            user: fallbackUser,
+            requiresActivation: true,
+            message: 'تم حفظ طلب الاشتراك بنجاح في قاعدة بيانات Neon المشتركة وإرساله للوحة المالك.',
+            dbConnected: true
+          };
+        }
+      } catch (err2) {
+        console.error('Secondary request to /api/requests failed:', err2);
+      }
     }
 
-    // Fallback: save to local storage
-    return this.registerUser(payload);
+    // Do NOT show a fake success! Return error so the user knows server was not reached!
+    return {
+      success: false,
+      message: 'تعذر الاتصال بقاعدة البيانات المشتركة لحفظ طلبك في لوحة المالك. يرجى التأكد من اتصال الإنترنت وإعادة المحاولة.',
+      dbConnected: false
+    };
   },
 
   registerUser(payload: {
@@ -399,20 +471,6 @@ export const authStorage = {
     users.push(newUser);
     this.saveUsers(users);
 
-    // Also trigger cloud push asynchronously in background
-    fetch('/api/requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone: cleanPhone,
-        name: payload.name.trim(),
-        university: payload.university,
-        academicYear: payload.academicYear || 1,
-        isAcademySubscriber: payload.isAcademySubscriber,
-        deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'الهاتف'
-      })
-    }).catch(() => {});
-
     return {
       success: true,
       user: newUser,
@@ -421,7 +479,83 @@ export const authStorage = {
     };
   },
 
-  // Owner data sync with Neon DB
+  // Submit quick access request (no password needed) directly to Neon DB
+  async submitQuickAccessRequest(payload: {
+    phone: string;
+    name: string;
+    university?: string;
+    academicYear?: AcademicYear;
+    isAcademySubscriber?: boolean;
+    notes?: string;
+  }): Promise<{ success: boolean; message: string; requestId?: string; dbConnected?: boolean }> {
+    const cleanPhone = payload.phone.trim();
+    const cleanName = payload.name.trim();
+    if (!cleanPhone || cleanPhone.length < 6) {
+      return { success: false, message: 'يرجى إدخال رقم هاتف صالح (6 أرقام على الأقل)' };
+    }
+    if (!cleanName) {
+      return { success: false, message: 'يرجى إدخال الاسم كاملاً' };
+    }
+
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: cleanPhone,
+          name: cleanName,
+          university: payload.university || 'جامعة صنعاء',
+          academicYear: payload.academicYear || 1,
+          isAcademySubscriber: Boolean(payload.isAcademySubscriber),
+          deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'الهاتف',
+          notes: payload.notes
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: data.message || 'تم إرسال طلبك وحفظه بنجاح في قاعدة بيانات Neon المشتركة للوحة المالك.',
+          requestId: data.requestId,
+          dbConnected: true
+        };
+      }
+      return {
+        success: false,
+        message: data.message || 'تعذر حفظ الطلب في قاعدة البيانات',
+        dbConnected: Boolean(data.dbConnected)
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: 'فشل الاتصال بالخادم لحفظ الطلب المشترك. يرجى التأكد من اتصال الإنترنت.',
+        dbConnected: false
+      };
+    }
+  },
+
+  // Check specific phone request status from Neon DB
+  async checkMyRequestStatus(phone: string): Promise<{
+    found: boolean;
+    phone: string;
+    status?: string;
+    isActivated?: boolean;
+    message?: string;
+    request?: AccessRequest;
+  }> {
+    try {
+      const res = await fetch(`/api/requests?phone=${encodeURIComponent(phone.trim())}`);
+      if (res.ok) {
+        return await res.json();
+      }
+      return { found: false, phone, message: `استجابة الخادم: ${res.status}` };
+    } catch {
+      return { found: false, phone, message: 'تعذر الاتصال بالخادم' };
+    }
+  },
+
+  // Owner data sync with Neon DB (Strictly authorized)
   async getOwnerDataFromDatabase(): Promise<{
     success: boolean;
     users: StudentUser[];
@@ -433,7 +567,11 @@ export const authStorage = {
   }> {
     try {
       const response = await fetch('/api/owner?action=data', {
-        headers: { 'Accept': 'application/json' }
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${this.getOwnerToken()}`,
+          'x-owner-password': this.getOwnerToken()
+        }
       });
       if (response.ok) {
         const data = await response.json();
@@ -443,7 +581,7 @@ export const authStorage = {
             this.saveAccessRequests(data.requests);
           }
           if (data.ownerPassword) {
-            localStorage.setItem(OWNER_PASSWORD_STORAGE_KEY, data.ownerPassword);
+            this.setOwnerToken(data.ownerPassword);
           }
           return {
             success: true,
@@ -454,6 +592,15 @@ export const authStorage = {
             dbConnected: true
           };
         }
+      } else if (response.status === 401) {
+        return {
+          success: false,
+          users: this.getUsers(),
+          requests: this.getAccessRequests(),
+          ownerPassword: this.getOwnerPassword(),
+          dbConnected: true,
+          error: 'كلمة سر المالك غير مصرح بها. يرجى إعادة تسجيل الدخول كمالك.'
+        };
       }
     } catch (e: any) {
       console.warn('Failed to fetch owner data from Neon DB:', e);
@@ -475,7 +622,7 @@ export const authStorage = {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({ action: 'activate-phone', phone: cleanPhone })
       });
       const data = await response.json();
@@ -484,8 +631,8 @@ export const authStorage = {
         this.activateUserByPhone(cleanPhone);
         return { success: true, message: data.message, user: data.user };
       }
-      if (data.message) {
-        return { success: false, message: data.message };
+      if (data.message || data.error) {
+        return { success: false, message: data.message || data.error };
       }
     } catch (e) {
       console.warn('Could not activate on Neon DB, updating local storage:', e);
@@ -494,12 +641,32 @@ export const authStorage = {
     return this.activateUserByPhone(cleanPhone);
   },
 
+  // Owner rejects request in Neon DB
+  async rejectRequestInDatabase(requestId: string, phone?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/api/owner', {
+        method: 'POST',
+        headers: this.getOwnerHeaders(),
+        body: JSON.stringify({ action: 'reject-request', requestId, phone })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const reqs = this.getAccessRequests().map(r => r.id === requestId ? { ...r, status: 'rejected' as const } : r);
+        this.saveAccessRequests(reqs);
+        return { success: true, message: data.message };
+      }
+      return { success: false, message: data.message || data.error || 'تعذر رفض الطلب' };
+    } catch (e: any) {
+      return { success: false, message: e?.message || 'خطأ في الاتصال' };
+    }
+  },
+
   // Owner toggles user activation in Neon DB
   async toggleUserActivationInDatabase(userId: string): Promise<{ success: boolean; isActivated: boolean }> {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({ action: 'toggle-activation', userId })
       });
       const data = await response.json();
@@ -533,7 +700,7 @@ export const authStorage = {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({
           action: 'create-account',
           ...payload
@@ -569,11 +736,12 @@ export const authStorage = {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({ action: 'update-password', newPassword })
       });
       const data = await response.json();
       if (response.ok && data.success) {
+        this.setOwnerToken(newPassword);
         return { success: true, message: data.message };
       }
     } catch (e) {
@@ -643,7 +811,7 @@ export const authStorage = {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({
           action: 'update-user-access',
           ...payload
@@ -693,7 +861,7 @@ export const authStorage = {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({ action: 'delete-user', userId, phone })
       });
       const data = await response.json();
@@ -716,7 +884,7 @@ export const authStorage = {
     try {
       const response = await fetch('/api/owner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getOwnerHeaders(),
         body: JSON.stringify({ action: 'delete-request', requestId })
       });
       const data = await response.json();
@@ -848,6 +1016,7 @@ export const authStorage = {
     const isValid = cleanPass === activeOwnerPass || MASTER_OWNER_PASSWORDS.includes(cleanPass);
 
     if (isValid) {
+      this.setOwnerToken(cleanPass);
       const ownerUser: StudentUser = {
         id: 'owner_master',
         name: 'المالك ومدير المنصة (Owner)',

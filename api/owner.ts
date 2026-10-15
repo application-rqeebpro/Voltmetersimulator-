@@ -21,6 +21,36 @@ export default async function handler(req: any, res: any) {
 
   await initDatabase();
 
+  const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
+
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader.trim();
+  const customPass = (req.headers['x-owner-password'] || req.query?.ownerPassword || req.body?.ownerPassword || '').toString().trim();
+  const provided = token || customPass;
+
+  let isAuthorized = false;
+  if (provided) {
+    if (MASTER_OWNER_PASSWORDS.includes(provided)) {
+      isAuthorized = true;
+    } else {
+      try {
+        const q = await pool.query("SELECT value FROM system_settings WHERE key = 'owner_password' LIMIT 1;");
+        if (q.rows.length > 0 && q.rows[0].value === provided) {
+          isAuthorized = true;
+        }
+      } catch {}
+    }
+  }
+
+  // Enforce security on all owner operations
+  if (!isAuthorized) {
+    return res.status(401).json({
+      success: false,
+      dbConnected: true,
+      error: 'غير مصرح: يرجى تسجيل الدخول بكلمة سر المالك للوصول إلى لوحة التحكم والبيانات المشتركة.'
+    });
+  }
+
   const action = req.query?.action || req.body?.action || 'data';
 
   // 1. GET ALL OWNER DATA (Users + Access Requests + Stats)
@@ -391,7 +421,30 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  // 7. DELETE / DECLINE REQUEST
+  // 7. REJECT REQUEST (mark status as rejected)
+  if (action === 'reject-request') {
+    try {
+      const { requestId, phone } = req.body || {};
+      if (!requestId && !phone) {
+        return res.status(400).json({ success: false, message: 'معرف الطلب أو رقم الهاتف مطلوب' });
+      }
+
+      await pool.query(
+        "UPDATE access_requests SET status = 'rejected', updated_at = NOW() WHERE id = $1 OR phone = $2;",
+        [requestId || '', phone || '']
+      );
+
+      return res.status(200).json({
+        success: true,
+        dbConnected: true,
+        message: 'تم رفض طلب الاشتراك'
+      });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error?.message || String(error) });
+    }
+  }
+
+  // 8. DELETE / DECLINE REQUEST
   if (action === 'delete-request') {
     try {
       const { requestId } = req.body || {};

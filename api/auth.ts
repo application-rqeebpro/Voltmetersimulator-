@@ -23,7 +23,7 @@ export default async function handler(req: any, res: any) {
 
   await initDatabase();
 
-  const action = req.query?.action || req.body?.action || 'login';
+  const action = req.body?.action || req.query?.action || (req.body?.name ? 'register' : 'login');
 
   // 1. REGISTER
   if (action === 'register') {
@@ -56,18 +56,102 @@ export default async function handler(req: any, res: any) {
         [cleanPhone]
       );
 
+      const hashedPassword = bcrypt.hashSync(cleanPassword, 10);
+      let userId: string;
+
       if (existing.rows.length > 0) {
-        return res.status(409).json({
-          success: false,
-          alreadyExists: true,
-          isActivated: existing.rows[0].is_activated,
-          message: 'رقم الهاتف مسجل بالفعل مسبقاً في قاعدة بيانات المعمل. يرجى تسجيل الدخول.'
+        const existingRow = existing.rows[0];
+        if (existingRow.is_activated) {
+          return res.status(409).json({
+            success: false,
+            alreadyExists: true,
+            isActivated: true,
+            message: 'رقم الهاتف مسجل ومفعّل بالفعل مسبقاً في قاعدة بيانات المعمل. يرجى تسجيل الدخول مباشرة.'
+          });
+        }
+
+        // If not activated yet, update user record and refresh their pending access request!
+        userId = existingRow.id;
+        await pool.query(`
+          UPDATE users 
+          SET 
+            name = $1, 
+            password = $2, 
+            university = $3, 
+            academic_year = $4, 
+            is_academy_subscriber = $5,
+            updated_at = NOW()
+          WHERE id = $6;
+        `, [
+          cleanName,
+          hashedPassword,
+          cleanUniv,
+          academicYear || 1,
+          Boolean(isAcademySubscriber),
+          userId
+        ]);
+
+        // Upsert in access_requests table
+        const reqCheck = await pool.query('SELECT id FROM access_requests WHERE phone = $1 LIMIT 1;', [cleanPhone]);
+        if (reqCheck.rows.length > 0) {
+          await pool.query(`
+            UPDATE access_requests
+            SET 
+              name = $1,
+              university = $2,
+              academic_year = $3,
+              is_academy_subscriber = $4,
+              status = 'pending',
+              device_info = $5,
+              updated_at = NOW()
+            WHERE phone = $6;
+          `, [
+            cleanName,
+            cleanUniv,
+            academicYear || 1,
+            Boolean(isAcademySubscriber),
+            deviceInfo || 'الهاتف',
+            cleanPhone
+          ]);
+        } else {
+          const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          await pool.query(`
+            INSERT INTO access_requests (
+              id, phone, name, university, academic_year, is_academy_subscriber, status, device_info, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, NOW(), NOW());
+          `, [
+            reqId,
+            cleanPhone,
+            cleanName,
+            cleanUniv,
+            academicYear || 1,
+            Boolean(isAcademySubscriber),
+            deviceInfo || 'الهاتف'
+          ]);
+        }
+
+        return res.status(200).json({
+          success: true,
+          dbConnected: true,
+          user: {
+            id: userId,
+            name: cleanName,
+            phone: cleanPhone,
+            university: cleanUniv,
+            academicYear: academicYear || 1,
+            isAcademySubscriber: Boolean(isAcademySubscriber),
+            isActivated: false,
+            role: 'student',
+            registeredAt: new Date().toISOString().split('T')[0]
+          },
+          requiresActivation: true,
+          message: 'تم تحديث بيانات طلبك في قاعدة بيانات Neon بنجاح! حسابك بانتظار موافقة وتفعيل المالك.'
         });
       }
 
-      const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      // Brand new user registration
+      userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      const hashedPassword = bcrypt.hashSync(cleanPassword, 10);
 
       // Insert into users table
       await pool.query(`
