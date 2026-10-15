@@ -28,11 +28,9 @@ import { LabReportModal } from './components/LabReportModal';
 import { VoltmeterSimulator } from './components/VoltmeterSimulator';
 import { CircuitWizardLab } from './components/CircuitWizardLab';
 
-import { LoginPage } from './components/LoginPage';
 import { OwnerAdminModal } from './components/OwnerAdminModal';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { authStorage } from './services/authStorage';
-import { StudentUser } from './types/mechatronics';
 
 import { 
   Cpu, 
@@ -54,9 +52,7 @@ import {
   Gauge,
   Compass,
   ArrowRight,
-  LogOut,
   ShieldCheck,
-  User,
   Menu,
   X,
   SlidersHorizontal,
@@ -133,8 +129,6 @@ export default function App() {
     });
   }, []);
 
-  // User Authentication & Session
-  const [currentUser, setCurrentUser] = useState<StudentUser | null>(() => authStorage.getCurrentUser());
   const [showOwnerModal, setShowOwnerModal] = useState<boolean>(false);
   const [customLessons, setCustomLessons] = useState<Experiment[]>(() => authStorage.getCustomLessons());
 
@@ -163,29 +157,6 @@ export default function App() {
     });
   };
 
-  // STRICT ACCESS GATING: The lab cannot be used without logging in and having an activated account
-  if (!currentUser || !currentUser.isActivated) {
-    return (
-      <>
-        <LoginPage
-          onLoginSuccess={(user) => {
-            setCurrentUser(user);
-          }}
-          onOpenOwnerModal={() => {
-            setShowOwnerModal(true);
-          }}
-        />
-        <OwnerAdminModal
-          isOpen={showOwnerModal}
-          onClose={() => setShowOwnerModal(false)}
-          onLessonAdded={(lesson) => {
-            setCustomLessons(prev => [lesson, ...prev]);
-          }}
-        />
-      </>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-600 selection:text-white">
       {/* Top Engineering University Brand Bar */}
@@ -213,21 +184,13 @@ export default function App() {
             </div>
           </div>
 
-          {/* User Status & Mobile Menu Toggle */}
+          {/* Lab Access Status & Mobile Menu Toggle */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Student User Name Badge */}
-            <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs">
+            {/* Direct Open Access Badge */}
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="font-bold text-white max-w-[85px] sm:max-w-[130px] truncate">{currentUser.name}</span>
-              {currentUser.role === 'owner' ? (
-                <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-bold border border-amber-500/40">
-                  المالك
-                </span>
-              ) : (
-                <span className="text-[10px] text-slate-400 hidden xl:inline">
-                  ({currentUser.university})
-                </span>
-              )}
+              <span className="font-bold text-emerald-400 hidden sm:inline">وصول مباشر ومجاني للمختبر</span>
+              <span className="font-bold text-emerald-400 sm:hidden">مختبر متاح</span>
             </div>
 
             {/* Desktop Actions Bar (visible on lg screens and up) */}
@@ -280,19 +243,6 @@ export default function App() {
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>تقرير (PDF)</span>
-              </button>
-
-              {/* Logout Button */}
-              <button
-                onClick={() => {
-                  authStorage.setCurrentUser(null);
-                  setCurrentUser(null);
-                }}
-                className="px-2 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-800 rounded-xl text-xs font-bold flex items-center gap-1 transition"
-                title="تسجيل الخروج"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>خروج</span>
               </button>
             </div>
 
@@ -367,19 +317,6 @@ export default function App() {
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>لوحة تحكم المالك</span>
-              </button>
-
-              {/* Logout Button */}
-              <button
-                onClick={() => {
-                  authStorage.setCurrentUser(null);
-                  setCurrentUser(null);
-                  setMobileMenuOpen(false);
-                }}
-                className="py-2.5 px-3 bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-800/40 rounded-xl font-bold flex items-center justify-center gap-1.5 transition"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>تسجيل الخروج</span>
               </button>
 
               {/* PWA Button */}
