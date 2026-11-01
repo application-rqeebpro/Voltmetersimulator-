@@ -841,7 +841,7 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
         <div className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
 
         {/* SVG Layer for Drawing All Wires */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>
           {/* Render Completed Wires */}
           {wires.map((wire) => {
             // Cubic Bezier curve for realistic drooping wire effect

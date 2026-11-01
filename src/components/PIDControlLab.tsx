@@ -180,12 +180,16 @@ export const PIDControlLab: React.FC = () => {
     }
 
     // Chart labels
-    ctx.font = '10px monospace';
+    ctx.save();
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 11px Cairo, monospace';
     ctx.fillStyle = '#eab308';
-    ctx.fillText(`القيمة المطلوبة (SP = ${params.setpoint})`, 10, spY - 6);
+    ctx.fillText(`القيمة المطلوبة (SP = ${params.setpoint})`, width - 15, spY - 6);
 
     ctx.fillStyle = '#10b981';
-    ctx.fillText(`استجابة النظام الحالية (PV = ${currentVal.toFixed(1)})`, 10, 20);
+    ctx.fillText(`استجابة النظام الحالية (PV = ${currentVal.toFixed(1)})`, width - 15, 20);
+    ctx.restore();
   }, [currentVal, params.setpoint]);
 
   // Apply Ziegler-Nichols preset

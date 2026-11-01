@@ -714,17 +714,21 @@ export const VoltmeterSimulator: React.FC = () => {
           {/* METER DISPLAY: Digital LCD or Analog Needle */}
           {meterType === 'digital' ? (
             /* Digital 7-Segment LCD Display */
-            <div className="bg-[#a3e635]/80 p-2.5 rounded-xl border-4 border-slate-800 shadow-inner font-mono text-slate-950 flex flex-col justify-between h-28">
-              <div className="flex justify-between items-center text-[10px] font-black opacity-80">
+            <div
+              dir="ltr"
+              className="bg-[#a3e635]/80 p-2.5 rounded-xl border-4 border-slate-800 shadow-inner font-mono text-slate-950 flex flex-col justify-between h-28 force-ltr"
+              style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+            >
+              <div className="flex justify-between items-center text-[10px] font-black opacity-80" dir="ltr">
                 <span>AUTO RANGE</span>
                 <span>{readingUnit}</span>
                 <span>{soundEnabled && '♪'}</span>
               </div>
-              <div className="text-3xl font-black tracking-tight text-center my-auto">
+              <div className="text-3xl font-black tracking-tight text-center my-auto force-ltr" dir="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>
                 {reading}
               </div>
               {/* Analog bar-graph emulation */}
-              <div className="w-full bg-slate-950/20 h-1.5 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-950/20 h-1.5 rounded-full overflow-hidden" dir="ltr">
                 <div
                   className="bg-slate-950 h-full transition-all duration-150"
                   style={{ width: `${Math.min(100, Math.max(0, (Math.abs(numericVal) / 20) * 100))}%` }}
@@ -733,9 +737,9 @@ export const VoltmeterSimulator: React.FC = () => {
             </div>
           ) : (
             /* Classic Moving-Coil Galvanometer Analog Meter */
-            <div className="bg-slate-100 p-2 rounded-xl border-4 border-slate-800 shadow-inner relative h-28 overflow-hidden flex flex-col justify-between">
+            <div className="bg-slate-100 p-2 rounded-xl border-4 border-slate-800 shadow-inner relative h-28 overflow-hidden flex flex-col justify-between" dir="ltr" style={{ direction: 'ltr' }}>
               {/* Dial Arc Scale */}
-              <svg className="w-full h-16 overflow-visible">
+              <svg className="w-full h-16 overflow-visible" style={{ direction: 'ltr' }}>
                 <path d="M 20 50 A 60 60 0 0 1 180 50" fill="none" stroke="#334155" strokeWidth="2.5" />
                 {/* Scale Ticks */}
                 <text x="25" y="45" fontSize="7" fontWeight="bold">0V</text>

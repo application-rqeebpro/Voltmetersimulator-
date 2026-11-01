@@ -240,16 +240,20 @@ export const RoboticArmLab: React.FC = () => {
     ctx.fillRect(60, 275, 50, 15);
     ctx.strokeStyle = '#10b981';
     ctx.strokeRect(60, 275, 50, 15);
-    ctx.font = '10px sans-serif';
+    ctx.save();
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 11px Cairo, sans-serif';
     ctx.fillStyle = '#10b981';
-    ctx.fillText('محطة الالتقاط A', 52, 305);
+    ctx.fillText('محطة الالتقاط A', 85, 305);
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
     ctx.fillRect(310, 275, 50, 15);
     ctx.strokeStyle = '#3b82f6';
     ctx.strokeRect(310, 275, 50, 15);
     ctx.fillStyle = '#60a5fa';
-    ctx.fillText('محطة التجميع B', 302, 305);
+    ctx.fillText('محطة التجميع B', 335, 305);
+    ctx.restore();
   }, [theta1, theta2, theta3, gripperOpen, pickedItem, eeX, eeY]);
 
   // Joint Torques calculation (approx for L1, L2, L3 with payload m=0.5kg)

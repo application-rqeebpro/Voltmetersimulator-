@@ -30,7 +30,11 @@ export const DCPowerSupply: React.FC<DCPowerSupplyProps> = ({ state, onChange })
       </div>
 
       {/* 7-Segment Dual LED Displays */}
-      <div className="grid grid-cols-2 gap-3 bg-black/90 p-3 rounded-xl border border-slate-800">
+      <div
+        dir="ltr"
+        className="grid grid-cols-2 gap-3 bg-black/90 p-3 rounded-xl border border-slate-800 force-ltr"
+        style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+      >
         {/* Voltage Display */}
         <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-slate-950 border border-red-900/40">
           <span className="text-[10px] text-red-500 font-bold mb-0.5">VOLTAGE (V)</span>

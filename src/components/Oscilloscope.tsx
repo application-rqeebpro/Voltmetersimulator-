@@ -180,16 +180,21 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
       ctx.shadowBlur = 0;
 
       // On-Screen Measurement Readout HUD
-      ctx.font = 'bold 11px monospace';
+      ctx.save();
+      ctx.direction = 'ltr';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 11px "JetBrains Mono", monospace';
       ctx.fillStyle = '#facc15';
       ctx.fillText(`CH1: ${(sourceSignal?.ch1Amp ?? state.vppCH1).toFixed(2)}Vpp  ${(sourceSignal?.ch1Freq ?? state.frequencyCH1).toFixed(0)}Hz  [${state.voltsPerDivCH1}V/div]`, 12, 18);
 
       ctx.fillStyle = '#22d3ee';
       ctx.fillText(`CH2: ${(sourceSignal?.ch2Amp ?? state.vppCH2).toFixed(2)}Vpp  ${(sourceSignal?.ch2Freq ?? state.frequencyCH2).toFixed(0)}Hz  [${state.voltsPerDivCH2}V/div]`, 12, 34);
 
+      ctx.textAlign = 'right';
       ctx.fillStyle = '#10b981';
-      ctx.fillText(`TIME: ${state.timePerDiv} ms/div   TRIG: AUTO`, width - 180, 18);
-      ctx.fillText(state.run ? 'STATUS: RUNNING ●' : 'STATUS: STOPPED ■', width - 180, 34);
+      ctx.fillText(`TIME: ${state.timePerDiv} ms/div   TRIG: AUTO`, width - 14, 18);
+      ctx.fillText(state.run ? 'STATUS: RUNNING ●' : 'STATUS: STOPPED ■', width - 14, 34);
+      ctx.restore();
 
       if (running) {
         animationFrameRef.current = requestAnimationFrame(render);

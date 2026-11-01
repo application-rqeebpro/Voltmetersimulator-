@@ -97,9 +97,11 @@ export const DigitalMultimeter: React.FC<DigitalMultimeterProps> = ({
 
       {/* LCD Display */}
       <div
-        className={`p-4 rounded-xl border-4 border-slate-700 transition shadow-inner font-mono relative ${
+        dir="ltr"
+        className={`p-4 rounded-xl border-4 border-slate-700 transition shadow-inner font-mono relative force-ltr ${
           backlight ? 'bg-emerald-300 text-slate-900' : 'bg-slate-300 text-slate-800'
         }`}
+        style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
       >
         <div className="flex justify-between items-center text-[11px] font-bold pb-1 text-slate-700">
           <span>AUTO RANGE</span>

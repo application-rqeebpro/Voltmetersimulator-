@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Play,
   Pause,
+  Square,
   RotateCcw,
   Sparkles,
   Zap,
@@ -26,10 +27,13 @@ import {
   ChevronDown,
   Info,
   Download,
+  Upload,
   Cpu,
   Crosshair,
   Printer,
   Copy,
+  Scissors,
+  Clipboard,
   Save,
   FilePlus,
   AlertTriangle,
@@ -645,11 +649,18 @@ export function CircuitWizardLab() {
 
   // Modals
   const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
+  const [newProjectName, setNewProjectName] = useState<string>('My Circuit');
   const [showPropertiesModal, setShowPropertiesModal] = useState<boolean>(false);
+  const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [editingComp, setEditingComp] = useState<CWElement | null>(null);
 
   // Active menu dropdown
-  const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'project' | null>(null);
+  const [activeMenu, setActiveMenu] = useState<'file' | 'edit' | 'view' | 'project' | 'help' | null>(null);
+
+  // Clipboard & Undo History
+  const [clipboardComp, setClipboardComp] = useState<CWElement | null>(null);
+  const [historyStack, setHistoryStack] = useState<Array<{ elements: CWElement[]; wires: CWWire[] }>>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // ----------------------------------------------------
   // Dynamic Circuit Physics Solver
@@ -708,6 +719,13 @@ export function CircuitWizardLab() {
         const neighbors = adj[currentPinKey] || [];
         for (const n of neighbors) {
           const neighborKey = `${n.compId}:${n.pinId}`;
+
+          // If wire connects directly to negative terminal of battery
+          if (neighborKey === negKey && pathComps.length > 1) {
+            closedLoopPath = pathComps;
+            break;
+          }
+
           if (!visited.has(neighborKey)) {
             visited.add(neighborKey);
 
@@ -719,9 +737,21 @@ export function CircuitWizardLab() {
               continue;
             }
 
+            // If diode or LED is reverse biased (path entering cathode)
+            if ((comp.kind === 'led' || comp.kind === 'diode') && n.pinId === 'cathode') {
+              continue;
+            }
+
             const compPins = COMPONENT_PINS[comp.kind] || [];
             for (const p of compPins) {
+              if (p.id === n.pinId) continue; // Skip same entry pin
               const otherPinKey = `${comp.id}:${p.id}`;
+
+              if (otherPinKey === negKey && pathComps.length > 1) {
+                closedLoopPath = [...pathComps, comp.id];
+                break;
+              }
+
               if (!visited.has(otherPinKey)) {
                 visited.add(otherPinKey);
                 queue.push({
@@ -731,8 +761,10 @@ export function CircuitWizardLab() {
                 });
               }
             }
+            if (closedLoopPath) break;
           }
         }
+        if (closedLoopPath) break;
       }
 
       if (closedLoopPath && closedLoopPath.length > 1) {
@@ -878,25 +910,124 @@ export function CircuitWizardLab() {
   }, []);
 
   // ----------------------------------------------------
-  // Project Actions: New, Load, Reset
+  // Project Actions: New, Load, Reset, Clipboard & History
   // ----------------------------------------------------
-  const handleStartBlankProject = () => {
+  const pushHistory = useCallback(() => {
+    setHistoryStack((prev) => [...prev.slice(-15), { elements: [...elements], wires: [...wires] }]);
+  }, [elements, wires]);
+
+  const handleUndo = useCallback(() => {
+    if (historyStack.length === 0) return;
+    const last = historyStack[historyStack.length - 1];
+    setHistoryStack((prev) => prev.slice(0, -1));
+    setElements(last.elements);
+    setWires(last.wires);
+    setSelectedCompId(null);
+    setSelectedWireId(null);
+  }, [historyStack]);
+
+  const handleCopy = useCallback(() => {
+    const comp = elements.find((e) => e.id === selectedCompId);
+    if (comp) {
+      setClipboardComp(comp);
+    }
+  }, [elements, selectedCompId]);
+
+  const handleCut = useCallback(() => {
+    const comp = elements.find((e) => e.id === selectedCompId);
+    if (comp) {
+      pushHistory();
+      setClipboardComp(comp);
+      setElements((prev) => prev.filter((el) => el.id !== comp.id));
+      setWires((prev) => prev.filter((w) => w.fromCompId !== comp.id && w.toCompId !== comp.id));
+      setSelectedCompId(null);
+    }
+  }, [elements, selectedCompId, pushHistory]);
+
+  const handlePaste = useCallback(() => {
+    if (!clipboardComp) return;
+    pushHistory();
+    const newId = `comp_${Date.now()}`;
+    const newRef = `${clipboardComp.kind.slice(0, 2).toUpperCase()}${elements.length + 1}`;
+    const dup: CWElement = {
+      ...clipboardComp,
+      id: newId,
+      ref: newRef,
+      x: Math.min(680, clipboardComp.x + 35),
+      y: Math.min(480, clipboardComp.y + 35)
+    };
+    setElements((prev) => [...prev, dup]);
+    setSelectedCompId(newId);
+  }, [clipboardComp, elements.length, pushHistory]);
+
+  const handleClearCanvas = useCallback(() => {
+    if (elements.length > 0 || wires.length > 0) {
+      pushHistory();
+      setElements([]);
+      setWires([]);
+      setSelectedCompId(null);
+      setSelectedWireId(null);
+      setWiringFrom(null);
+    }
+  }, [elements.length, wires.length, pushHistory]);
+
+  const handleSelectAll = useCallback(() => {
+    if (elements.length > 0) {
+      setSelectedCompId(elements[0].id);
+    }
+  }, [elements]);
+
+  const handleSaveCWZ = useCallback(() => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ activeCircuit, elements, wires }));
+    const dl = document.createElement('a');
+    dl.setAttribute("href", dataStr);
+    dl.setAttribute("download", activeCircuit.fileName);
+    dl.click();
+  }, [activeCircuit, elements, wires]);
+
+  const handleImportCWZ = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.elements) {
+          pushHistory();
+          if (data.activeCircuit) setActiveCircuit(data.activeCircuit);
+          setElements(data.elements || []);
+          setWires(data.wires || []);
+          setSelectedCompId(null);
+          setSelectedWireId(null);
+        }
+      } catch {
+        // Safe fallback
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }, [pushHistory]);
+
+  const handleStartBlankProject = (customName?: string) => {
+    pushHistory();
+    const finalName = customName && customName.trim() ? customName.trim() : (newProjectName.trim() || 'Untitled');
+    const cleanFileName = finalName.endsWith('.cwz') ? finalName : `${finalName}.cwz`;
     setElements([]);
     setWires([]);
     setSelectedCompId(null);
     setSelectedWireId(null);
     setWiringFrom(null);
     setActiveCircuit({
-      id: 'custom_project',
-      fileName: 'Untitled.cwz',
+      id: `custom_project_${Date.now()}`,
+      fileName: cleanFileName,
       category: 'Basic Circuits',
       subGroup: 'General',
-      title: 'Blank Project',
-      titleAr: 'مشروع جديد فارغ',
+      title: finalName,
+      titleAr: `مشروع جديد: ${finalName}`,
       desc: 'مشروع فارغ جديد للرسم الحر وبناء وتوصيل الدوائر الإلكترونية.',
       sheetTitle: 'Circuit Diagram',
       instructions: {
-        title: 'Circuit Diagram — New Custom Project',
+        title: `${finalName} — New Custom Project`,
         line1: 'Add components from the Gallery or the quick toolbar above.',
         line2: 'Drag them to place and click on pins to connect wires.'
       },
@@ -910,11 +1041,13 @@ export function CircuitWizardLab() {
   };
 
   const handleStartBreadboardProject = () => {
+    pushHistory();
     handleLoadSample(CW_SAMPLE_CIRCUITS[6]);
     setShowNewProjectModal(false);
   };
 
   const handleLoadSample = (sample: CWSampleCircuit) => {
+    pushHistory();
     setActiveCircuit(sample);
     setElements(sample.elements);
     setWires(sample.wires);
@@ -1135,11 +1268,14 @@ export function CircuitWizardLab() {
     <div
       ref={labContainerRef}
       dir="ltr"
-      className="w-full bg-[#808080] text-slate-900 select-none font-['Tahoma',sans-serif] text-xs flex flex-col shadow-2xl border border-[#404040] overflow-hidden rounded-md transition-all"
+      className="w-full bg-[#808080] text-slate-900 select-none font-['Tahoma',sans-serif] text-xs flex flex-col shadow-2xl border border-[#404040] overflow-hidden rounded-md transition-all force-ltr"
       style={{
+        direction: 'ltr',
         height: isFullscreen ? '100vh' : 'calc(100vh - 145px)',
         minHeight: '520px',
-        maxHeight: isFullscreen ? 'none' : '880px'
+        maxHeight: isFullscreen ? 'none' : '880px',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}
       onClick={() => {
         if (activeMenu) setActiveMenu(null);
@@ -1188,10 +1324,19 @@ export function CircuitWizardLab() {
         </div>
       </div>
 
+      {/* Hidden file input for importing .cwz files */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".cwz,.json"
+        onChange={handleImportCWZ}
+        className="hidden"
+      />
+
       {/* ======================================================== */}
-      {/* 2. Menu Bar: File  Edit  View  Project  Window  Help     */}
+      {/* 2. Menu Bar: File  Edit  View  Project  Help             */}
       {/* ======================================================== */}
-      <div className="bg-[#ece9d8] border-b border-[#aca899] px-2 py-0.5 flex items-center gap-0.5 text-[11px] text-slate-800 shrink-0 relative overflow-x-auto no-scrollbar">
+      <div className="bg-[#ece9d8] border-b border-[#aca899] px-2 py-0.5 flex items-center gap-0.5 text-[11px] text-slate-800 shrink-0 relative overflow-x-auto no-scrollbar font-medium">
         {/* Menu Item: File */}
         <div className="relative">
           <button
@@ -1206,7 +1351,7 @@ export function CircuitWizardLab() {
             <span className="underline">F</span>ile
           </button>
           {activeMenu === 'file' && (
-            <div className="absolute left-0 top-full mt-0.5 w-52 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
+            <div className="absolute left-0 top-full mt-0.5 w-56 bg-white border border-[#7a7a7a] shadow-xl rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
               <div className="py-0.5">
                 <button
                   onClick={() => {
@@ -1215,7 +1360,10 @@ export function CircuitWizardLab() {
                   }}
                   className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
                 >
-                  <span className="font-bold">New Project (مشروع جديد)...</span>
+                  <span className="font-bold flex items-center gap-1.5">
+                    <FilePlus className="w-3.5 h-3.5 text-blue-600" />
+                    New Project (مشروع جديد)...
+                  </span>
                   <span className="text-[10px] text-slate-400">Ctrl+N</span>
                 </button>
                 <button
@@ -1225,23 +1373,37 @@ export function CircuitWizardLab() {
                   }}
                   className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
                 >
-                  <span>Open Sample Circuits...</span>
+                  <span className="flex items-center gap-1.5">
+                    <FolderOpen className="w-3.5 h-3.5 text-amber-600" />
+                    Open Sample Circuits...
+                  </span>
                   <span className="text-[10px] text-slate-400">Ctrl+O</span>
+                </button>
+                <button
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-slate-600" />
+                    Import .cwz File...
+                  </span>
                 </button>
               </div>
               <div className="py-0.5">
                 <button
                   onClick={() => {
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ activeCircuit, elements, wires }));
-                    const dl = document.createElement('a');
-                    dl.setAttribute("href", dataStr);
-                    dl.setAttribute("download", activeCircuit.fileName);
-                    dl.click();
+                    handleSaveCWZ();
                     setActiveMenu(null);
                   }}
                   className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
                 >
-                  <span>Save .cwz File</span>
+                  <span className="flex items-center gap-1.5">
+                    <Save className="w-3.5 h-3.5 text-blue-600" />
+                    Save .cwz File
+                  </span>
                   <span className="text-[10px] text-slate-400">Ctrl+S</span>
                 </button>
                 <button
@@ -1251,8 +1413,25 @@ export function CircuitWizardLab() {
                   }}
                   className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
                 >
-                  <span>Print Sheet...</span>
+                  <span className="flex items-center gap-1.5">
+                    <Printer className="w-3.5 h-3.5 text-slate-600" />
+                    Print / Export Sheet...
+                  </span>
                   <span className="text-[10px] text-slate-400">Ctrl+P</span>
+                </button>
+              </div>
+              <div className="py-0.5">
+                <button
+                  onClick={() => {
+                    handleClearCanvas();
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-rose-600 hover:text-white flex items-center justify-between text-rose-700"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    Clear Canvas (مسح اللوحة)
+                  </span>
                 </button>
               </div>
             </div>
@@ -1273,29 +1452,118 @@ export function CircuitWizardLab() {
             <span className="underline">E</span>dit
           </button>
           {activeMenu === 'edit' && (
-            <div className="absolute left-0 top-full mt-0.5 w-48 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800">
-              <button
-                onClick={() => {
-                  handleLoadSample(CW_SAMPLE_CIRCUITS[0]);
-                  setActiveMenu(null);
-                }}
-                className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
-              >
-                <span>Reset to Bulb Circuit</span>
-                <span className="text-[10px] text-slate-400">Ctrl+Z</span>
-              </button>
-              {selectedCompId && (
+            <div className="absolute left-0 top-full mt-0.5 w-52 bg-white border border-[#7a7a7a] shadow-xl rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
+              <div className="py-0.5">
                 <button
                   onClick={() => {
-                    handleDeleteComponent(selectedCompId);
+                    handleUndo();
                     setActiveMenu(null);
                   }}
-                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between text-rose-600"
+                  disabled={historyStack.length === 0}
+                  className={`w-full text-left px-3 py-1 flex items-center justify-between ${
+                    historyStack.length > 0 ? 'hover:bg-[#316ac5] hover:text-white' : 'text-slate-400 cursor-not-allowed'
+                  }`}
                 >
-                  <span>Delete Selected</span>
-                  <span className="text-[10px] text-slate-400">Del</span>
+                  <span className="flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Undo (تراجع)
+                  </span>
+                  <span className="text-[10px] text-slate-400">Ctrl+Z</span>
                 </button>
-              )}
+              </div>
+              <div className="py-0.5">
+                <button
+                  onClick={() => {
+                    handleCut();
+                    setActiveMenu(null);
+                  }}
+                  disabled={!selectedCompId}
+                  className={`w-full text-left px-3 py-1 flex items-center justify-between ${
+                    selectedCompId ? 'hover:bg-[#316ac5] hover:text-white' : 'text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Scissors className="w-3.5 h-3.5" />
+                    Cut Selected (قص)
+                  </span>
+                  <span className="text-[10px] text-slate-400">Ctrl+X</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleCopy();
+                    setActiveMenu(null);
+                  }}
+                  disabled={!selectedCompId}
+                  className={`w-full text-left px-3 py-1 flex items-center justify-between ${
+                    selectedCompId ? 'hover:bg-[#316ac5] hover:text-white' : 'text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy Selected (نسخ)
+                  </span>
+                  <span className="text-[10px] text-slate-400">Ctrl+C</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handlePaste();
+                    setActiveMenu(null);
+                  }}
+                  disabled={!clipboardComp}
+                  className={`w-full text-left px-3 py-1 flex items-center justify-between ${
+                    clipboardComp ? 'hover:bg-[#316ac5] hover:text-white font-bold' : 'text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Clipboard className="w-3.5 h-3.5" />
+                    Paste (لصق)
+                  </span>
+                  <span className="text-[10px] text-slate-400">Ctrl+V</span>
+                </button>
+              </div>
+              <div className="py-0.5">
+                {selectedCompId && (
+                  <button
+                    onClick={() => {
+                      handleRotateComponent(selectedCompId);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <RotateCw className="w-3.5 h-3.5" />
+                      Rotate 90° (تدوير)
+                    </span>
+                    <span className="text-[10px] text-slate-400">R</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    handleSelectAll();
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span>Select All (تحديد الكل)</span>
+                  <span className="text-[10px] text-slate-400">Ctrl+A</span>
+                </button>
+                {(selectedCompId || selectedWireId) && (
+                  <button
+                    onClick={() => {
+                      if (selectedCompId) handleDeleteComponent(selectedCompId);
+                      else if (selectedWireId) handleDeleteWire(selectedWireId);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3 py-1 hover:bg-rose-600 hover:text-white flex items-center justify-between text-rose-600"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Selected (حذف)
+                    </span>
+                    <span className="text-[10px] text-slate-400">Del</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1314,19 +1582,38 @@ export function CircuitWizardLab() {
             <span className="underline">V</span>iew
           </button>
           {activeMenu === 'view' && (
-            <div className="absolute left-0 top-full mt-0.5 w-48 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800">
-              <button onClick={() => { setMode('realworld'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Real World (المكونات الواقعية)</span> {mode === 'realworld' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-              </button>
-              <button onClick={() => { setMode('normal'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Normal (المخطط الرمزي)</span> {mode === 'normal' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-              </button>
-              <button onClick={() => { setMode('current_flow'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Current Flow (سريان التيار)</span> {mode === 'current_flow' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-              </button>
-              <button onClick={() => { setMode('voltage_levels'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Voltage Levels (مستويات الجهد)</span> {mode === 'voltage_levels' && <Check className="w-3.5 h-3.5 text-blue-600" />}
-              </button>
+            <div className="absolute left-0 top-full mt-0.5 w-52 bg-white border border-[#7a7a7a] shadow-xl rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
+              <div className="py-0.5">
+                <button onClick={() => { setMode('realworld'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Real World (المكونات الواقعية)</span> {mode === 'realworld' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                </button>
+                <button onClick={() => { setMode('normal'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Normal (المخطط الرمزي)</span> {mode === 'normal' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                </button>
+                <button onClick={() => { setMode('current_flow'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Current Flow (سريان التيار)</span> {mode === 'current_flow' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                </button>
+                <button onClick={() => { setMode('voltage_levels'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Voltage Levels (مستويات الجهد)</span> {mode === 'voltage_levels' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                </button>
+              </div>
+              <div className="py-0.5">
+                <button onClick={() => { setShowGrid(!showGrid); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Toggle Grid Dots (الشبكة)</span> {showGrid && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                </button>
+                <button onClick={() => { setZoomPercent((z) => Math.min(z + 10, 150)); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Zoom In (تكبير)</span> <span className="text-[10px] text-slate-400">+10%</span>
+                </button>
+                <button onClick={() => { setZoomPercent((z) => Math.max(z - 10, 60)); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Zoom Out (تصغير)</span> <span className="text-[10px] text-slate-400">-10%</span>
+                </button>
+                <button onClick={() => { setZoomPercent(100); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Reset Zoom (100%)</span> <span className="text-[10px] text-slate-400">100%</span>
+                </button>
+                <button onClick={() => { toggleFullscreen(); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span>Fullscreen (ملء الشاشة)</span> <span className="text-[10px] text-slate-400">{isFullscreen ? 'Esc' : 'F11'}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1345,19 +1632,83 @@ export function CircuitWizardLab() {
             <span className="underline">P</span>roject
           </button>
           {activeMenu === 'project' && (
-            <div className="absolute left-0 top-full mt-0.5 w-48 bg-white border border-[#7a7a7a] shadow-lg rounded-sm py-1 z-50 text-[11px] text-slate-800">
-              <button onClick={() => { setIsSimulating(true); setIsPaused(false); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Run Simulation</span> <span className="text-[10px] text-slate-400">F9</span>
-              </button>
-              <button onClick={() => { setIsPaused(!isPaused); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Pause</span> <span className="text-[10px] text-slate-400">❚❚</span>
-              </button>
-              <button onClick={() => { setIsSimulating(false); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
-                <span>Stop</span> <span className="text-[10px] text-slate-400">■</span>
-              </button>
-              <button onClick={() => { setBottomTab('bom'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white">
-                <span>Bill of Materials...</span>
-              </button>
+            <div className="absolute left-0 top-full mt-0.5 w-52 bg-white border border-[#7a7a7a] shadow-xl rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
+              <div className="py-0.5">
+                <button onClick={() => { setIsSimulating(true); setIsPaused(false); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between font-bold text-emerald-700">
+                  <span className="flex items-center gap-1.5"><Play className="w-3.5 h-3.5 fill-current" /> Run Simulation</span> <span className="text-[10px] text-slate-400">F9</span>
+                </button>
+                <button onClick={() => { setIsPaused(!isPaused); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between text-amber-700">
+                  <span className="flex items-center gap-1.5"><Pause className="w-3.5 h-3.5 fill-current" /> Pause</span> <span className="text-[10px] text-slate-400">❚❚</span>
+                </button>
+                <button onClick={() => { setIsSimulating(false); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between text-rose-700">
+                  <span className="flex items-center gap-1.5"><Square className="w-3.5 h-3.5 fill-current" /> Stop</span> <span className="text-[10px] text-slate-400">■</span>
+                </button>
+              </div>
+              <div className="py-0.5">
+                <button onClick={() => { setRightTab('gallery'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5" /> Component Gallery</span>
+                </button>
+                <button onClick={() => { setRightTab('assistant'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5 text-amber-500" /> Sample Assistant</span>
+                </button>
+                <button onClick={() => { setBottomTab('bom'); setActiveMenu(null); }} className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Bill of Materials...</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Menu Item: Help */}
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenu(activeMenu === 'help' ? null : 'help');
+            }}
+            className={`px-2 py-0.5 rounded hover:bg-[#316ac5] hover:text-white transition-colors ${
+              activeMenu === 'help' ? 'bg-[#316ac5] text-white' : ''
+            }`}
+          >
+            <span className="underline">H</span>elp
+          </button>
+          {activeMenu === 'help' && (
+            <div className="absolute left-0 top-full mt-0.5 w-56 bg-white border border-[#7a7a7a] shadow-xl rounded-sm py-1 z-50 text-[11px] text-slate-800 divide-y divide-slate-100">
+              <div className="py-0.5">
+                <button
+                  onClick={() => {
+                    setShowHelpModal(true);
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+                    Circuit Wizard Guide (دليل المختبر)
+                  </span>
+                  <span className="text-[10px] text-slate-400">F1</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowHelpModal(true);
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white flex items-center justify-between"
+                >
+                  <span>Keyboard Shortcuts (اختصارات المفاتيح)</span>
+                </button>
+              </div>
+              <div className="py-0.5">
+                <button
+                  onClick={() => {
+                    handleLoadSample(CW_SAMPLE_CIRCUITS[0]);
+                    setActiveMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-1 hover:bg-[#316ac5] hover:text-white text-slate-600"
+                >
+                  <span>Restore Default Circuit (دائرة المصباح)</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1371,7 +1722,7 @@ export function CircuitWizardLab() {
         <button
           onClick={() => setShowNewProjectModal(true)}
           className="px-2 py-0.5 bg-white hover:bg-blue-50 border border-[#aca899] rounded-xs font-bold flex items-center gap-1 text-slate-900 shadow-xs transition shrink-0 active:translate-y-0.5"
-          title="New Project (مشروع جديد)"
+          title="New Project (مشروع جديد - Ctrl+N)"
         >
           <FilePlus className="w-3.5 h-3.5 text-blue-600" />
           <span className="text-[11px]">New</span>
@@ -1381,24 +1732,113 @@ export function CircuitWizardLab() {
         <button
           onClick={() => setRightTab('assistant')}
           className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
-          title="Open Sample Circuits"
+          title="Open Sample Circuits (نماذج التجارب - Ctrl+O)"
         >
           <FolderOpen className="w-4 h-4 text-amber-600" />
         </button>
 
+        {/* Import .cwz from PC */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
+          title="Open .cwz File from Computer (استيراد ملف من جهازك)"
+        >
+          <Upload className="w-4 h-4 text-slate-700" />
+        </button>
+
         {/* Save */}
         <button
-          onClick={() => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ activeCircuit, elements, wires }));
-            const dl = document.createElement('a');
-            dl.setAttribute("href", dataStr);
-            dl.setAttribute("download", activeCircuit.fileName);
-            dl.click();
-          }}
+          onClick={handleSaveCWZ}
           className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
-          title="Save Circuit (.cwz)"
+          title="Save Circuit (.cwz) (حفظ المشروع - Ctrl+S)"
         >
           <Save className="w-4 h-4 text-blue-600" />
+        </button>
+
+        {/* Print / Export */}
+        <button
+          onClick={() => window.print()}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
+          title="Print / Export Sheet (طباعة المخطط - Ctrl+P)"
+        >
+          <Printer className="w-4 h-4 text-slate-700" />
+        </button>
+
+        <div className="h-5 w-px bg-[#aca899] mx-0.5 sm:mx-1 shrink-0" />
+
+        {/* Cut */}
+        <button
+          onClick={handleCut}
+          disabled={!selectedCompId}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            selectedCompId ? 'hover:bg-white text-slate-800' : 'text-slate-400 cursor-not-allowed'
+          }`}
+          title="Cut Selected (قص - Ctrl+X)"
+        >
+          <Scissors className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Copy */}
+        <button
+          onClick={handleCopy}
+          disabled={!selectedCompId}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            selectedCompId ? 'hover:bg-white text-slate-800' : 'text-slate-400 cursor-not-allowed'
+          }`}
+          title="Copy Selected (نسخ - Ctrl+C)"
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Paste */}
+        <button
+          onClick={handlePaste}
+          disabled={!clipboardComp}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            clipboardComp ? 'hover:bg-white text-blue-700 font-bold' : 'text-slate-400 cursor-not-allowed'
+          }`}
+          title="Paste (لصق - Ctrl+V)"
+        >
+          <Clipboard className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Undo */}
+        <button
+          onClick={handleUndo}
+          disabled={historyStack.length === 0}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            historyStack.length > 0 ? 'hover:bg-white text-slate-800' : 'text-slate-400 cursor-not-allowed'
+          }`}
+          title="Undo Last Action (تراجع - Ctrl+Z)"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Delete */}
+        <button
+          onClick={() => {
+            if (selectedCompId) handleDeleteComponent(selectedCompId);
+            else if (selectedWireId) handleDeleteWire(selectedWireId);
+          }}
+          disabled={!selectedCompId && !selectedWireId}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            selectedCompId || selectedWireId ? 'hover:bg-rose-100 text-rose-600' : 'text-slate-400 cursor-not-allowed'
+          }`}
+          title="Delete Selected (حذف - Del)"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Rotate */}
+        <button
+          onClick={() => selectedCompId && handleRotateComponent(selectedCompId)}
+          disabled={!selectedCompId}
+          className={`p-1 rounded-xs transition shrink-0 ${
+            selectedCompId ? 'hover:bg-white text-slate-800' : 'text-slate-400 cursor-not-allowed'
+          }`}
+          title="Rotate 90° (تدوير - R)"
+        >
+          <RotateCw className="w-3.5 h-3.5" />
         </button>
 
         <div className="h-5 w-px bg-[#aca899] mx-0.5 sm:mx-1 shrink-0" />
@@ -1415,7 +1855,7 @@ export function CircuitWizardLab() {
                 ? 'bg-emerald-600 text-white shadow-inner'
                 : 'hover:bg-emerald-100 text-emerald-800'
             }`}
-            title="Run Simulation (F9)"
+            title="Run Simulation (تشغيل المحاكاة - F9)"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span className="hidden xs:inline sm:inline">Run</span>
@@ -1425,7 +1865,7 @@ export function CircuitWizardLab() {
             className={`p-1 rounded-xs transition ${
               isPaused ? 'bg-amber-500 text-white shadow-inner' : 'hover:bg-amber-100 text-slate-700'
             }`}
-            title="Pause Simulation"
+            title="Pause Simulation (إيقاف مؤقت)"
           >
             <Pause className="w-3.5 h-3.5 fill-current" />
           </button>
@@ -1437,9 +1877,9 @@ export function CircuitWizardLab() {
             className={`p-1 rounded-xs transition ${
               !isSimulating ? 'bg-rose-600 text-white shadow-inner' : 'hover:bg-rose-100 text-slate-700'
             }`}
-            title="Stop Simulation"
+            title="Stop Simulation (إيقاف المحاكاة)"
           >
-            <div className="w-2.5 h-2.5 bg-rose-600 border border-rose-800 rounded-2xs" />
+            <Square className="w-3 h-3 fill-current text-rose-600" />
           </button>
         </div>
 
@@ -1472,7 +1912,7 @@ export function CircuitWizardLab() {
           className={`p-1 rounded-xs border transition shrink-0 ${
             showGrid ? 'bg-blue-100 text-blue-700 border-blue-400' : 'hover:bg-white border-transparent text-slate-600'
           }`}
-          title="Toggle Grid Dots"
+          title="Toggle Grid Dots (شبكة النقاط)"
         >
           <Grid className="w-4 h-4" />
         </button>
@@ -1481,14 +1921,14 @@ export function CircuitWizardLab() {
         <button
           onClick={() => setZoomPercent((z) => Math.min(z + 10, 150))}
           className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
-          title="Zoom In"
+          title="Zoom In (تكبير)"
         >
           <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
         </button>
         <button
           onClick={() => setZoomPercent((z) => Math.max(z - 10, 60))}
           className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0"
-          title="Zoom Out"
+          title="Zoom Out (تصغير)"
         >
           <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 font-bold flex items-center justify-center text-slate-800 leading-none">−</span>
         </button>
@@ -1517,10 +1957,19 @@ export function CircuitWizardLab() {
               ? 'bg-[#316ac5] text-white border-[#002266]'
               : 'bg-[#ece9d8] hover:bg-white border-[#aca899] text-slate-800'
           }`}
-          title="Sample Circuits Assistant"
+          title="Sample Circuits Assistant (مساعد التجارب)"
         >
           <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
           <span>Assistant</span>
+        </button>
+
+        {/* Guide / Help Button */}
+        <button
+          onClick={() => setShowHelpModal(true)}
+          className="p-1 hover:bg-[#ffffff] active:bg-[#dfdfdf] border border-transparent hover:border-[#7a7a7a] rounded-xs transition shrink-0 text-blue-700"
+          title="Circuit Wizard Guide (دليل المختبر - F1)"
+        >
+          <HelpCircle className="w-4 h-4" />
         </button>
 
         {/* Sound Toggle */}
@@ -1529,7 +1978,7 @@ export function CircuitWizardLab() {
           className={`p-1 rounded-xs transition shrink-0 ${
             soundEnabled ? 'text-indigo-700' : 'text-slate-400'
           }`}
-          title="Toggle Hardware Sounds"
+          title="Toggle Hardware Sounds (أصوات المفاتيح)"
         >
           {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
         </button>
@@ -1748,80 +2197,69 @@ export function CircuitWizardLab() {
         {/* ====================================================== */}
         {/* A. Left Vertical Mode Strip                            */}
         {/* ====================================================== */}
-        <div className="w-7 sm:w-8 md:w-9 bg-[#ece9d8] border-r border-[#aca899] flex flex-col items-center py-2 gap-1 shrink-0 z-20 shadow-xs select-none">
-          <button
-            onClick={() => setMode('normal')}
-            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
-              mode === 'normal'
-                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-blue-800 font-bold'
-                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
-            }`}
-            title="Normal Schematic Mode (المخطط الرمزي)"
-          >
-            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold">
-              Normal
-            </span>
-          </button>
-
-          <button
-            onClick={() => setMode('realworld')}
-            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
-              mode === 'realworld'
-                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-blue-800 font-bold'
-                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
-            }`}
-            title="Real World Mode (المكونات الواقعية)"
-          >
-            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold whitespace-nowrap">
-              Real World
-            </span>
-          </button>
-
-          <button
-            onClick={() => setMode('current_flow')}
-            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
-              mode === 'current_flow'
-                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-emerald-800 font-bold'
-                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
-            }`}
-            title="Current Flow (سريان التيار المتحرك)"
-          >
-            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold whitespace-nowrap">
-              Current Flow
-            </span>
-          </button>
-
-          <button
-            onClick={() => setMode('voltage_levels')}
-            className={`w-5 sm:w-6 md:w-7 py-2.5 rounded-xs flex items-center justify-center border transition-all ${
-              mode === 'voltage_levels'
-                ? 'bg-[#ffffff] border-[#7a7a7a] shadow-inner text-red-800 font-bold'
-                : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
-            }`}
-            title="Voltage Levels (مستويات الجهد)"
-          >
-            <span className="text-[9px] sm:text-[10px] tracking-widest writing-vertical uppercase transform rotate-180 font-semibold whitespace-nowrap">
-              Voltage Levels
-            </span>
-          </button>
+        <div
+          dir="ltr"
+          className="w-8 sm:w-9 md:w-10 bg-[#ece9d8] border-r border-[#aca899] flex flex-col items-center py-2 gap-2 shrink-0 z-20 shadow-xs select-none box-border"
+          style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+        >
+          {[
+            { id: 'normal', label: 'Normal', titleAr: 'المخطط الرمزي', activeColor: 'text-blue-800', icon: Activity },
+            { id: 'realworld', label: 'Real World', titleAr: 'المكونات الواقعية', activeColor: 'text-blue-800', icon: Layers },
+            { id: 'current_flow', label: 'Current Flow', titleAr: 'سريان التيار المتحرك', activeColor: 'text-emerald-800', icon: Zap },
+            { id: 'voltage_levels', label: 'Voltage Levels', titleAr: 'مستويات الجهد', activeColor: 'text-red-800', icon: Gauge }
+          ].map((tab) => {
+            const IconComp = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setMode(tab.id as CircuitWizardMode)}
+                dir="ltr"
+                className={`w-6 sm:w-7 md:w-8 py-2 rounded-xs flex flex-col items-center justify-center border transition-all ${
+                  mode === tab.id
+                    ? `bg-[#ffffff] border-[#7a7a7a] shadow-inner font-bold ${tab.activeColor}`
+                    : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#f5f4ef] text-slate-700'
+                }`}
+                title={`${tab.label} (${tab.titleAr})`}
+                style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+              >
+                <IconComp className="w-3.5 h-3.5 mb-1 shrink-0" />
+                <span
+                  className="text-[9px] sm:text-[9.5px] tracking-wider select-none font-semibold text-center whitespace-nowrap block force-ltr"
+                  dir="ltr"
+                  style={{
+                    writingMode: 'vertical-rl',
+                    textOrientation: 'mixed',
+                    direction: 'ltr',
+                    transform: 'none',
+                    unicodeBidi: 'isolate'
+                  }}
+                >
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ====================================================== */}
         {/* B. Center Workspace: Paper Page with Drop Shadow       */}
         {/* ====================================================== */}
         <div
-          className="flex-1 bg-[#808080] p-1 sm:p-3 md:p-4 overflow-auto flex items-center justify-center relative touch-pan-x touch-pan-y"
+          className="flex-1 bg-[#808080] p-1 sm:p-3 md:p-4 overflow-auto flex items-center justify-center relative touch-pan-x touch-pan-y max-w-full box-border"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onTouchMove={handleMouseMove}
           onTouchEnd={handleMouseUp}
+          style={{ maxWidth: '100%', boxSizing: 'border-box' }}
         >
           {/* Main Paper Sheet Container (Fixed & Stable across Mobile/Tablet/Desktop) */}
           <div
-            className="bg-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] border border-[#333333] relative shrink-0 transition-transform origin-center w-full max-w-[740px]"
+            className="bg-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] border border-[#333333] relative shrink-0 transition-transform origin-center w-full max-w-[740px] box-border"
             style={{
               aspectRatio: '740 / 540',
-              transform: zoomPercent !== 100 ? `scale(${zoomPercent / 100})` : undefined
+              transform: zoomPercent !== 100 ? `scale(${zoomPercent / 100})` : undefined,
+              maxWidth: '100%',
+              boxSizing: 'border-box'
             }}
             onDragOver={handleCanvasDragOver}
             onDrop={handleCanvasDrop}
@@ -1831,7 +2269,7 @@ export function CircuitWizardLab() {
               ref={svgRef}
               className="w-full h-full block cursor-crosshair select-none"
               viewBox="0 0 740 540"
-              style={{ overflow: 'visible', touchAction: 'none' }}
+              style={{ overflow: 'visible', touchAction: 'none', direction: 'ltr', unicodeBidi: 'isolate' }}
             >
               <defs>
                 {/* Glow filter for lit incandescent bulb */}
@@ -2068,10 +2506,10 @@ export function CircuitWizardLab() {
                               <rect x="-16" y="-85" width="32" height="145" rx="5" fill="#000000" opacity="0.15" />
                               <rect x="-5" y="-95" width="10" height="10" rx="2" fill="url(#copperGrad)" stroke="#7c2d12" strokeWidth="0.8" />
                               <rect x="-15" y="-84" width="30" height="32" rx="2" fill="url(#copperGrad)" stroke="#9a3412" strokeWidth="0.8" />
-                              <text x="0" y="-70" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">+</text>
-                              <text x="0" y="-58" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold">1.5V</text>
+                              <text x="0" y="-70" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>+</text>
+                              <text x="0" y="-58" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>1.5V</text>
                               <rect x="-15" y="-52" width="30" height="102" rx="2" fill="url(#batteryGrad)" stroke="#1e293b" strokeWidth="1" />
-                              <text x="0" y="10" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="bold" letterSpacing="2" transform="rotate(-90, 0, 10)">
+                              <text x="0" y="8" textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="bold" letterSpacing="1" direction="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>
                                 AA
                               </text>
                               <rect x="-13" y="50" width="26" height="5" rx="1" fill="#cbd5e1" stroke="#64748b" strokeWidth="0.8" />
@@ -2084,7 +2522,7 @@ export function CircuitWizardLab() {
                               <rect x="-22" y="-55" width="44" height="90" rx="4" fill="#0f172a" stroke="#334155" strokeWidth="1.5" />
                               <rect x="-12" y="-64" width="9" height="9" fill="#94a3b8" rx="1" />
                               <circle cx="8" cy="-60" r="4.5" fill="#f59e0b" stroke="#b45309" />
-                              <text x="0" y="5" textAnchor="middle" fill="#f59e0b" fontSize="12" fontWeight="bold">{el.value}V</text>
+                              <text x="0" y="5" textAnchor="middle" fill="#f59e0b" fontSize="12" fontWeight="bold" direction="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{el.value}V</text>
                             </g>
                           )}
 
@@ -2252,9 +2690,9 @@ export function CircuitWizardLab() {
                           {/* Bulb Schematic */}
                           {el.kind === 'bulb' && (
                             <g>
-                              <circle cx="-24" cy="0" r="14" fill="none" stroke="#000000" strokeWidth="2" />
-                              <line x1="-34" y1="-10" x2="-14" y2="10" stroke="#000000" strokeWidth="2" />
-                              <line x1="-14" y1="-10" x2="-34" y2="10" stroke="#000000" strokeWidth="2" />
+                              <circle cx="-24" cy="0" r="14" fill={elValues.isLit ? '#fef08a' : '#ffffff'} stroke="#000000" strokeWidth="2" />
+                              <line x1="-34" y1="-10" x2="-14" y2="10" stroke={elValues.isLit ? '#ea580c' : '#000000'} strokeWidth="2" />
+                              <line x1="-14" y1="-10" x2="-34" y2="10" stroke={elValues.isLit ? '#ea580c' : '#000000'} strokeWidth="2" />
                             </g>
                           )}
 
@@ -2297,8 +2735,11 @@ export function CircuitWizardLab() {
                       textAnchor="middle"
                       fill="#0f172a"
                       fontSize="10"
-                      fontFamily="sans-serif"
-                      className="pointer-events-none select-none font-semibold"
+                      fontFamily="'Cairo', 'Segoe UI', sans-serif"
+                      fontWeight="bold"
+                      direction="ltr"
+                      style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+                      className="pointer-events-none select-none"
                     >
                       {el.name}
                     </text>
@@ -2356,19 +2797,19 @@ export function CircuitWizardLab() {
                   <rect x="28" y="24" width="124" height="86" fill="none" stroke="#f59e0b" strokeWidth="1.6" rx="3" />
 
                   {/* Battery B1 */}
-                  <g transform="translate(28, 67)">
+                  <g transform="translate(28, 67)" direction="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>
                     <rect x="-8" y="-16" width="16" height="32" fill="#000000" />
                     <line x1="-11" y1="-5" x2="11" y2="-5" stroke="#f59e0b" strokeWidth="2.2" />
-                    <text x="-15" y="-3" fill="#ffffff" fontSize="8" fontWeight="bold">+</text>
+                    <text x="-15" y="-3" fill="#ffffff" fontSize="8" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>+</text>
                     <line x1="-6" y1="5" x2="6" y2="5" stroke="#f59e0b" strokeWidth="3.5" />
-                    <text x="-15" y="7" fill="#ffffff" fontSize="8" fontWeight="bold">-</text>
-                    <text x="-18" y="-10" textAnchor="end" fill="#ffffff" fontSize="7.5" fontWeight="bold">Battery</text>
-                    <text x="-18" y="0" textAnchor="end" fill="#ffffff" fontSize="7.5">B1</text>
-                    <text x="-18" y="10" textAnchor="end" fill="#ffffff" fontSize="7.5">1.5V</text>
+                    <text x="-15" y="7" fill="#ffffff" fontSize="8" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>-</text>
+                    <text x="-18" y="-10" textAnchor="end" fill="#ffffff" fontSize="7.5" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>Battery</text>
+                    <text x="-18" y="0" textAnchor="end" fill="#ffffff" fontSize="7.5" direction="ltr" style={{ direction: 'ltr' }}>B1</text>
+                    <text x="-18" y="10" textAnchor="end" fill="#ffffff" fontSize="7.5" direction="ltr" style={{ direction: 'ltr' }}>1.5V</text>
                   </g>
 
                   {/* Switch SW1 */}
-                  <g transform="translate(90, 24)">
+                  <g transform="translate(90, 24)" direction="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>
                     <rect x="-16" y="-5" width="32" height="10" fill="#000000" />
                     <circle cx="-10" cy="0" r="2.2" fill="#f59e0b" />
                     <circle cx="10" cy="0" r="2.2" fill="#f59e0b" />
@@ -2377,18 +2818,18 @@ export function CircuitWizardLab() {
                     ) : (
                       <line x1="-10" y1="0" x2="8" y2="-9" stroke="#f59e0b" strokeWidth="1.8" />
                     )}
-                    <text x="0" y="-13" textAnchor="middle" fill="#ffffff" fontSize="7.5" fontWeight="bold">Switch</text>
-                    <text x="0" y="-4" textAnchor="middle" fill="#ffffff" fontSize="7.5">SW1</text>
+                    <text x="0" y="-13" textAnchor="middle" fill="#ffffff" fontSize="7.5" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>Switch</text>
+                    <text x="0" y="-4" textAnchor="middle" fill="#ffffff" fontSize="7.5" direction="ltr" style={{ direction: 'ltr' }}>SW1</text>
                   </g>
 
                   {/* Bulb BL1 */}
-                  <g transform="translate(152, 67)">
+                  <g transform="translate(152, 67)" direction="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>
                     <rect x="-11" y="-14" width="22" height="28" fill="#000000" />
                     <circle cx="0" cy="0" r="9.5" fill={solvedState.isLoopActive ? '#fef08a' : '#000000'} stroke="#f59e0b" strokeWidth="1.6" />
                     <line x1="-6.5" y1="-6.5" x2="6.5" y2="6.5" stroke={solvedState.isLoopActive ? '#ea580c' : '#f59e0b'} strokeWidth="1.6" />
                     <line x1="6.5" y1="-6.5" x2="-6.5" y2="6.5" stroke={solvedState.isLoopActive ? '#ea580c' : '#f59e0b'} strokeWidth="1.6" />
-                    <text x="-15" y="-3" textAnchor="end" fill="#ffffff" fontSize="7.5" fontWeight="bold">Bulb</text>
-                    <text x="-15" y="7" textAnchor="end" fill="#ffffff" fontSize="7.5">BL1</text>
+                    <text x="-15" y="-3" textAnchor="end" fill="#ffffff" fontSize="7.5" fontWeight="bold" direction="ltr" style={{ direction: 'ltr' }}>Bulb</text>
+                    <text x="-15" y="7" textAnchor="end" fill="#ffffff" fontSize="7.5" direction="ltr" style={{ direction: 'ltr' }}>BL1</text>
                   </g>
                 </g>
               )}
@@ -2524,20 +2965,31 @@ export function CircuitWizardLab() {
                           e.dataTransfer.setData('application/json', JSON.stringify(item));
                         }}
                         onClick={() => handleAddComponent(item)}
-                        className="p-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 rounded cursor-grab active:cursor-grabbing flex items-center justify-between transition group"
+                        className="p-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 rounded cursor-grab active:cursor-grabbing flex items-center justify-between gap-2 transition group max-w-full box-border"
+                        style={{ maxWidth: '100%', boxSizing: 'border-box' }}
                       >
-                        <div className="min-w-0">
-                          <div className="font-bold text-slate-900 text-[11px] group-hover:text-blue-800 truncate">
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <div
+                            className="font-bold text-slate-900 text-[11px] group-hover:text-blue-800 truncate force-ltr"
+                            dir="ltr"
+                            style={{ direction: 'ltr', textAlign: 'left', unicodeBidi: 'isolate' }}
+                          >
                             {item.name}
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate">{item.nameAr}</div>
+                          <div
+                            className="text-[10px] text-slate-500 truncate force-rtl"
+                            dir="rtl"
+                            style={{ direction: 'rtl', textAlign: 'right', unicodeBidi: 'isolate' }}
+                          >
+                            {item.nameAr}
+                          </div>
                         </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleAddComponent(item);
                           }}
-                          className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded shrink-0"
+                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded shrink-0 shadow-xs active:translate-y-0.5"
                         >
                           + Add
                         </button>
@@ -2553,31 +3005,61 @@ export function CircuitWizardLab() {
         {/* ====================================================== */}
         {/* Right Vertical Tab Strip Handles                       */}
         {/* ====================================================== */}
-        <div className="w-6 sm:w-7 bg-[#ece9d8] border-l border-[#aca899] flex flex-col items-center py-2 gap-2 shrink-0 select-none z-20">
+        <div
+          dir="ltr"
+          className="w-7 sm:w-8 bg-[#ece9d8] border-l border-[#aca899] flex flex-col items-center py-2 gap-2 shrink-0 select-none z-20"
+          style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+        >
           <button
             onClick={() => setRightTab(rightTab === 'assistant' ? null : 'assistant')}
-            className={`w-5 sm:w-6 py-2.5 rounded-xs flex items-center justify-center border transition ${
+            dir="ltr"
+            className={`w-5 sm:w-6 py-2 rounded-xs flex flex-col items-center justify-center border transition ${
               rightTab === 'assistant'
                 ? 'bg-[#ffffff] border-[#7a7a7a] font-bold text-blue-800 shadow-inner'
                 : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#ffffff] text-slate-700'
             }`}
-            title="Sample Circuits Assistant"
+            title="Sample Circuits Assistant (مساعد التجارب)"
+            style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
           >
-            <span className="text-[9px] sm:text-[10px] tracking-wider writing-vertical transform rotate-180 font-semibold">
+            <Lightbulb className="w-3.5 h-3.5 mb-1 text-amber-600 shrink-0" />
+            <span
+              className="text-[9px] sm:text-[9.5px] tracking-wider font-semibold select-none text-center block force-ltr"
+              dir="ltr"
+              style={{
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                direction: 'ltr',
+                transform: 'none',
+                unicodeBidi: 'isolate'
+              }}
+            >
               Assistant
             </span>
           </button>
 
           <button
             onClick={() => setRightTab(rightTab === 'gallery' ? null : 'gallery')}
-            className={`w-5 sm:w-6 py-2.5 rounded-xs flex items-center justify-center border transition ${
+            dir="ltr"
+            className={`w-5 sm:w-6 py-2 rounded-xs flex flex-col items-center justify-center border transition ${
               rightTab === 'gallery'
                 ? 'bg-[#ffffff] border-[#7a7a7a] font-bold text-blue-800 shadow-inner'
                 : 'bg-[#e0ded0] border-[#b0aca0] hover:bg-[#ffffff] text-slate-700'
             }`}
             title="Component Gallery (لوحة المكونات)"
+            style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
           >
-            <span className="text-[9px] sm:text-[10px] tracking-wider writing-vertical transform rotate-180 font-semibold">
+            <Cpu className="w-3.5 h-3.5 mb-1 text-blue-600 shrink-0" />
+            <span
+              className="text-[9px] sm:text-[9.5px] tracking-wider font-semibold select-none text-center block force-ltr"
+              dir="ltr"
+              style={{
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                direction: 'ltr',
+                transform: 'none',
+                unicodeBidi: 'isolate'
+              }}
+            >
               Gallery
             </span>
           </button>
@@ -2709,10 +3191,14 @@ export function CircuitWizardLab() {
       {/* ======================================================== */}
       {/* 10. New Project Dialog Modal ("انشاء مشروع جديد")       */}
       {/* ======================================================== */}
+      {/* ======================================================== */}
+      {/* 10. New Project Dialog Modal ("انشاء مشروع جديد")       */}
+      {/* ======================================================== */}
       {showNewProjectModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
-          <div className="bg-white rounded-lg shadow-2xl border border-slate-300 w-full max-w-md overflow-hidden">
-            <div className="bg-gradient-to-r from-[#0a246a] to-[#0055ea] text-white px-4 py-2.5 flex items-center justify-between font-bold text-sm">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 select-none">
+          <div className="bg-white rounded-lg shadow-2xl border border-slate-300 w-full max-w-md overflow-hidden text-xs">
+            {/* Modal Title Bar */}
+            <div className="bg-gradient-to-r from-[#0a246a] via-[#0055ea] to-[#3a6ea5] text-white px-4 py-2.5 flex items-center justify-between font-bold text-sm">
               <div className="flex items-center gap-2">
                 <FilePlus className="w-4 h-4 text-amber-300" />
                 <span>New Project (إنشاء مشروع جديد)</span>
@@ -2725,23 +3211,45 @@ export function CircuitWizardLab() {
               </button>
             </div>
 
-            <div className="p-4 space-y-3 text-xs text-slate-800">
-              <p className="text-slate-600">
-                اختر نوع المشروع الذي ترغب ببدء العمل عليه في محاكي سيركت ويزارد:
-              </p>
+            <div className="p-4 space-y-3.5 text-slate-800">
+              {/* Project Name Input */}
+              <div className="space-y-1">
+                <label className="block font-bold text-slate-700 text-xs">
+                  اسم المشروع (Project Title):
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="My Circuit 1"
+                    className="flex-1 px-3 py-1.5 border border-slate-300 rounded font-medium text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => handleStartBlankProject(newProjectName)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs shrink-0 shadow-xs active:translate-y-0.5"
+                  >
+                    إنشاء فارغ
+                  </button>
+                </div>
+              </div>
 
-              <div className="space-y-2">
+              <div className="border-t border-slate-200 pt-2 space-y-2">
+                <span className="text-[11px] font-bold text-slate-600 block">
+                  أو اختر قالباً معملياً جاهزاً للبدء (Or Choose a Template):
+                </span>
+
                 {/* 1. Blank Project */}
                 <button
-                  onClick={handleStartBlankProject}
-                  className="w-full p-3 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/70 rounded text-left transition flex items-center justify-between group"
+                  onClick={() => handleStartBlankProject(newProjectName)}
+                  className="w-full p-2.5 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/70 rounded text-left transition flex items-center justify-between group"
                 >
-                  <div>
-                    <div className="font-bold text-slate-900 group-hover:text-blue-800 text-sm">
+                  <div className="min-w-0 pr-2">
+                    <div className="font-bold text-slate-900 group-hover:text-blue-800 text-xs">
                       1. Blank Project (مشروع فارغ جديد)
                     </div>
-                    <div className="text-slate-500 text-[11px] mt-0.5">
-                      صفحة عمل بيضاء فارغة تماماً لإضافة وسحب المكونات والتوصيل بحرية.
+                    <div className="text-slate-500 text-[10px] truncate mt-0.5">
+                      مساحة عمل بيضاء خالية للرسم الحر وإضافة المكونات من لوحة Gallery.
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0" />
@@ -2750,14 +3258,14 @@ export function CircuitWizardLab() {
                 {/* 2. Breadboard Starter */}
                 <button
                   onClick={handleStartBreadboardProject}
-                  className="w-full p-3 border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/70 rounded text-left transition flex items-center justify-between group"
+                  className="w-full p-2.5 border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/70 rounded text-left transition flex items-center justify-between group"
                 >
-                  <div>
-                    <div className="font-bold text-slate-900 group-hover:text-emerald-800 text-sm">
-                      2. Project with Breadboard (مشروع مع لوحة تجارب)
+                  <div className="min-w-0 pr-2">
+                    <div className="font-bold text-slate-900 group-hover:text-emerald-800 text-xs">
+                      2. Breadboard Circuit (مشروع لوحة التجارب)
                     </div>
-                    <div className="text-slate-500 text-[11px] mt-0.5">
-                      لوحة تجميع التجارب (Breadboard) جاهزة مع مصدر طاقة ومكونات.
+                    <div className="text-slate-500 text-[10px] truncate mt-0.5">
+                      لوحة تجميع واقعية Breadboard مع مصدر طاقة ومفتاح ومقاومة وLED.
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
@@ -2766,14 +3274,14 @@ export function CircuitWizardLab() {
                 {/* 3. Default Bulb Circuit */}
                 <button
                   onClick={() => handleLoadSample(CW_SAMPLE_CIRCUITS[0])}
-                  className="w-full p-3 border border-slate-200 hover:border-amber-500 hover:bg-amber-50/70 rounded text-left transition flex items-center justify-between group"
+                  className="w-full p-2.5 border border-slate-200 hover:border-amber-500 hover:bg-amber-50/70 rounded text-left transition flex items-center justify-between group"
                 >
-                  <div>
-                    <div className="font-bold text-slate-900 group-hover:text-amber-800 text-sm">
-                      3. Bulb Circuit (دائرة المصباح والمفتاح الافتراضية)
+                  <div className="min-w-0 pr-2">
+                    <div className="font-bold text-slate-900 group-hover:text-amber-800 text-xs">
+                      3. Bulb Circuit (دائرة المصباح والمفتاح الكلاسيكية)
                     </div>
-                    <div className="text-slate-500 text-[11px] mt-0.5">
-                      دائرة سيركت ويزارد الكلاسيكية (بطارية 1.5V، مفتاح SW1، مصباح توهج).
+                    <div className="text-slate-500 text-[10px] truncate mt-0.5">
+                      الدائرة الأصلية لسيركت ويزارد: بطارية 1.5V، مفتاح SW1، مصباح توهج.
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 shrink-0" />
@@ -2787,6 +3295,97 @@ export function CircuitWizardLab() {
                 className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-xs"
               >
                 Cancel (إلغاء)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* Help & Shortcuts Guide Modal (دليل واستخدام المحاكي)      */}
+      {/* ======================================================== */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 select-none">
+          <div className="bg-white rounded-lg shadow-2xl border border-slate-300 w-full max-w-lg overflow-hidden text-xs">
+            <div className="bg-gradient-to-r from-[#0a246a] via-[#0055ea] to-[#3a6ea5] text-white px-4 py-2.5 flex items-center justify-between font-bold text-sm">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-amber-300" />
+                <span>Circuit Wizard Lab Guide (دليل استخدام المحاكي)</span>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} className="text-white/80 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3.5 text-slate-800 max-h-[75vh] overflow-y-auto">
+              <div className="space-y-1">
+                <h3 className="font-bold text-xs text-blue-900 border-b pb-1">
+                  طريقة توصيل وتشغيل الدوائر (How to Build & Simulate):
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-slate-600 text-[11px] leading-relaxed">
+                  <li><strong>توصيل الأسلاك:</strong> انقر على أي نقطة توصيل (Pin) لمكون، ثم انقر على طرف المكون الآخر.</li>
+                  <li><strong>تشغيل المحاكاة:</strong> اضغط على زر التشغيل الأخضر <strong>Run ▶</strong> أو مفتاح <strong>F9</strong>.</li>
+                  <li><strong>التحكم في المفاتيح:</strong> انقر على المفتاح (Switch) لفتحه أو إغلاقه أثناء المحاكاة.</li>
+                  <li><strong>إضافة مكونات:</strong> افتح لوحة <strong>Gallery</strong> أو شريط الإضافة السريع واسحب المكون إلى اللوحة.</li>
+                  <li><strong>أنماط العرض:</strong> بدّل بين النمط الواقعي <strong>Real World</strong> والمخطط الرمزي <strong>Normal</strong> وسريان التيار <strong>Current Flow</strong> من الشريط الجانبي.</li>
+                </ul>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-bold text-xs text-blue-900 border-b pb-1">
+                  اختصارات لوحة المفاتيح (Keyboard Shortcuts):
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">مشروع جديد:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl + N</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">حفظ المشروع:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl + S</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">نماذج التجارب:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl + O</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">تراجع (Undo):</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl + Z</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">قص المكون:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl + X</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">نسخ / لصق:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl+C / V</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">حذف المحدد:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Delete</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">تدوير 90°:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">R</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">تشغيل المحاكاة:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">F9</kbd>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 border rounded flex justify-between">
+                    <span className="text-slate-600">طباعة المخطط:</span>
+                    <kbd className="font-mono font-bold bg-white px-1.5 py-0.2 border rounded shadow-2xs">Ctrl + P</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 px-4 py-2 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs"
+              >
+                إغلاق (Close)
               </button>
             </div>
           </div>
