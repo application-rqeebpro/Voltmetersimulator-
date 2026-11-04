@@ -366,7 +366,7 @@ export const authStorage = {
           success: true,
           user: data.user,
           requiresActivation: true,
-          message: data.message || 'تم حفظ طلبك بنجاح في قاعدة بيانات Neon المشتركة وإرساله للوحة المالك.',
+          message: data.message || 'تم حفظ طلبك بنجاح في قاعدة بيانات المنصة.',
           dbConnected: true
         };
       }
@@ -419,7 +419,7 @@ export const authStorage = {
             success: true,
             user: fallbackUser,
             requiresActivation: true,
-            message: 'تم حفظ طلب الاشتراك بنجاح في قاعدة بيانات Neon المشتركة وإرساله للوحة المالك.',
+            message: 'تم حفظ طلب الاشتراك بنجاح في قاعدة البيانات.',
             dbConnected: true
           };
         }
@@ -431,7 +431,7 @@ export const authStorage = {
     // Do NOT show a fake success! Return error so the user knows server was not reached!
     return {
       success: false,
-      message: 'تعذر الاتصال بقاعدة البيانات المشتركة لحفظ طلبك في لوحة المالك. يرجى التأكد من اتصال الإنترنت وإعادة المحاولة.',
+      message: 'تعذر الاتصال بقاعدة البيانات. يرجى التأكد من اتصال الإنترنت وإعادة المحاولة.',
       dbConnected: false
     };
   },
@@ -517,7 +517,7 @@ export const authStorage = {
       if (response.ok && data.success) {
         return {
           success: true,
-          message: data.message || 'تم إرسال طلبك وحفظه بنجاح في قاعدة بيانات Neon المشتركة للوحة المالك.',
+          message: data.message || 'تم إرسال طلبك وحفظه بنجاح في قاعدة البيانات.',
           requestId: data.requestId,
           dbConnected: true
         };

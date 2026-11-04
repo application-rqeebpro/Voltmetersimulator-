@@ -223,11 +223,11 @@ export default function App() {
       {/* Top Engineering University Brand Bar */}
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md bg-slate-900/95 pt-safe">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
-          {/* Logo & Platform Title (20 Clicks triggers secret Owner Auth) */}
+          {/* Logo & Platform Title */}
           <div 
             onClick={handleLogoClick}
             className="flex items-center gap-2.5 min-w-0 cursor-pointer select-none group"
-            title="انقر 20 مرة لفتح لوحة المالك والتحكم"
+            title="المعمل الافتراضي لمهندسي الميكاترونكس"
           >
             <img 
               src="/logo.png" 
@@ -282,16 +282,6 @@ export default function App() {
             <div className="hidden lg:flex items-center gap-1.5">
               {/* PWA Mobile Install Button */}
               <PWAInstallButton variant="primary" />
-
-              {/* Owner Admin Button */}
-              <button
-                onClick={() => setShowOwnerModal(true)}
-                className="px-2.5 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
-                title="لوحة تحكم وإدارة المالك"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span>لوحة المالك</span>
-              </button>
 
               {/* University Dropdown */}
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs">
@@ -390,18 +380,6 @@ export default function App() {
               >
                 <FileText className="w-4 h-4" />
                 <span>تقرير المعمل PDF</span>
-              </button>
-
-              {/* Owner Admin Button */}
-              <button
-                onClick={() => {
-                  setShowOwnerModal(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="py-2.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl font-bold flex items-center justify-center gap-1.5 transition"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>لوحة تحكم المالك</span>
               </button>
 
               {/* PWA Button */}

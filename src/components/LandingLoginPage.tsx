@@ -132,7 +132,7 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
         <div 
           onClick={handleLogoTap}
           className="flex items-center gap-3 cursor-pointer select-none group"
-          title="انقر 20 مرة للوصول المباشر للوحة تحكم المالك"
+          title="المعمل الافتراضي لمهندسي الميكاترونكس"
         >
           <img 
             src="/logo.png" 
