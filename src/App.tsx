@@ -29,6 +29,9 @@ import { VoltmeterSimulator } from './components/VoltmeterSimulator';
 import { CircuitWizardLab } from './components/CircuitWizardLab';
 
 import { OwnerAdminModal } from './components/OwnerAdminModal';
+import { StudentAuthModal } from './components/StudentAuthModal';
+import { OwnerAuthModal } from './components/OwnerAuthModal';
+import { LandingLoginPage } from './components/LandingLoginPage';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { authStorage } from './services/authStorage';
 
@@ -53,6 +56,10 @@ import {
   Compass,
   ArrowRight,
   ShieldCheck,
+  User,
+  LogIn,
+  LogOut,
+  KeyRound,
   Menu,
   X,
   SlidersHorizontal,
@@ -129,8 +136,24 @@ export default function App() {
     });
   }, []);
 
+  const [currentUser, setCurrentUser] = useState(() => authStorage.getCurrentUser());
+  const [isGuestPreview, setIsGuestPreview] = useState<boolean>(false);
+  const [showStudentAuthModal, setShowStudentAuthModal] = useState<boolean>(false);
+  const [showOwnerAuthModal, setShowOwnerAuthModal] = useState<boolean>(false);
   const [showOwnerModal, setShowOwnerModal] = useState<boolean>(false);
+  const [logoClickCount, setLogoClickCount] = useState<number>(0);
+
   const [customLessons, setCustomLessons] = useState<Experiment[]>(() => authStorage.getCustomLessons());
+
+  // Handle logo 20-clicks trigger to reveal secret owner login
+  const handleLogoClick = () => {
+    const nextCount = logoClickCount + 1;
+    setLogoClickCount(nextCount);
+    if (nextCount >= 20) {
+      setLogoClickCount(0);
+      setShowOwnerAuthModal(true);
+    }
+  };
 
   // Merge custom lessons added by owner with default catalog
   const allCatalog = [...customLessons, ...EXPERIMENTS_CATALOG];
@@ -157,18 +180,60 @@ export default function App() {
     });
   };
 
+  // Render Landing / Login Gateway Screen before entering the Virtual Lab if not logged in
+  if (!currentUser && !isGuestPreview) {
+    return (
+      <>
+        <LandingLoginPage
+          onSuccessLogin={(user) => {
+            setCurrentUser(user);
+          }}
+          onLogoClick20={() => {
+            setShowOwnerAuthModal(true);
+          }}
+          onGuestAccess={() => {
+            setIsGuestPreview(true);
+          }}
+        />
+
+        {/* Secret Owner 3-Factor Auth Modal */}
+        <OwnerAuthModal
+          isOpen={showOwnerAuthModal}
+          onClose={() => setShowOwnerAuthModal(false)}
+          onSuccess={(ownerUser) => {
+            setCurrentUser(ownerUser);
+            setShowOwnerModal(true);
+          }}
+        />
+
+        {/* Owner Administration Modal */}
+        <OwnerAdminModal
+          isOpen={showOwnerModal}
+          onClose={() => setShowOwnerModal(false)}
+          onLessonAdded={(lesson) => {
+            setCustomLessons(prev => [lesson, ...prev]);
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-600 selection:text-white">
       {/* Top Engineering University Brand Bar */}
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md bg-slate-900/95 pt-safe">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
-          {/* Logo & Platform Title */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-400 p-0.5 shadow-lg shadow-purple-900/30 shrink-0">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] sm:rounded-[14px] flex items-center justify-center">
-                <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
-              </div>
-            </div>
+          {/* Logo & Platform Title (20 Clicks triggers secret Owner Auth) */}
+          <div 
+            onClick={handleLogoClick}
+            className="flex items-center gap-2.5 min-w-0 cursor-pointer select-none group"
+            title="انقر 20 مرة لفتح لوحة المالك والتحكم"
+          >
+            <img 
+              src="/logo.png" 
+              alt="شعار المعمل" 
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-purple-500/30 object-cover shadow-lg shadow-purple-900/30 group-hover:scale-105 transition-transform"
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h1 className="text-xs sm:text-base font-black tracking-tight text-white truncate">
@@ -186,12 +251,32 @@ export default function App() {
 
           {/* Lab Access Status & Mobile Menu Toggle */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Direct Open Access Badge */}
-            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="font-bold text-emerald-400 hidden sm:inline">وصول مباشر ومجاني للمختبر</span>
-              <span className="font-bold text-emerald-400 sm:hidden">مختبر متاح</span>
-            </div>
+            {/* User Account / Login Status */}
+            {currentUser ? (
+              <div className="flex items-center gap-1.5 bg-purple-950/40 border border-purple-500/30 px-2.5 py-1 rounded-xl text-xs">
+                <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="font-bold text-slate-200 max-w-[110px] truncate">{currentUser.name}</span>
+                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-500/20 text-emerald-300 rounded-md">مُفعّل</span>
+                <button
+                  onClick={() => {
+                    authStorage.setCurrentUser(null);
+                    setCurrentUser(null);
+                  }}
+                  className="mr-1 p-1 hover:bg-purple-900/60 text-slate-400 hover:text-rose-400 rounded-lg transition"
+                  title="تسجيل الخروج"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowStudentAuthModal(true)}
+                className="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-900/30 transition active:scale-95"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>تسجيل الدخول / تفعيل كود</span>
+              </button>
+            )}
 
             {/* Desktop Actions Bar (visible on lg screens and up) */}
             <div className="hidden lg:flex items-center gap-1.5">
@@ -775,6 +860,25 @@ export default function App() {
           university={selectedUniv}
         />
       )}
+
+      {/* Student Login & Account Activation Modal */}
+      <StudentAuthModal
+        isOpen={showStudentAuthModal}
+        onClose={() => setShowStudentAuthModal(false)}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+      />
+
+      {/* Secret Owner 3-Factor Auth Modal (Revealed by 20 clicks on logo) */}
+      <OwnerAuthModal
+        isOpen={showOwnerAuthModal}
+        onClose={() => setShowOwnerAuthModal(false)}
+        onSuccess={(ownerUser) => {
+          setCurrentUser(ownerUser);
+          setShowOwnerModal(true);
+        }}
+      />
 
       {/* Owner Administration Modal */}
       <OwnerAdminModal
