@@ -132,7 +132,7 @@ export async function initDatabase(): Promise<{ success: boolean; message: strin
         // Seed default owner password if not exists
         await client.query(`
           INSERT INTO system_settings (key, value, updated_at)
-          VALUES ('owner_password', '785502919', NOW())
+          VALUES ('owner_password', '785500075', NOW())
           ON CONFLICT (key) DO NOTHING;
         `);
 

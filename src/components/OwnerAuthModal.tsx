@@ -49,23 +49,23 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-amber-500/30 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative text-slate-100 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 bg-[#040915]/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[#0a1329] border-2 border-[#f59e0b]/40 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative text-slate-100 ring-1 ring-[#00d2ff]/30 animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-950/60 via-slate-900 to-purple-950/60 p-5 border-b border-amber-500/20 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-[#0a1838] via-[#060e22] to-[#0d214a] p-5 border-b border-[#00d2ff]/20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-11 h-11 rounded-2xl bg-[#0e2554] border border-[#f59e0b]/40 flex items-center justify-center p-1 shadow-md shrink-0">
+              <img src="/logo.png" alt="شعار المالك" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-amber-300">تسجيل دخول المالك والمدير</h3>
-              <p className="text-xs text-slate-400">التحقق الثلاثي للوصول للوحدة السرية للمالك</p>
+              <h3 className="font-black text-sm sm:text-base text-white">تسجيل دخول المالك والمدير</h3>
+              <p className="text-[11px] text-[#fbbf24]">التحقق الثلاثي للوصول للوحة تحكم المالك</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition"
+            className="w-8 h-8 rounded-xl bg-[#060c1d] hover:bg-[#0e2554] text-slate-400 hover:text-white flex items-center justify-center transition border border-[#00d2ff]/20"
           >
             <X className="w-4 h-4" />
           </button>
@@ -93,7 +93,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
           {/* 1. Email Input */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-amber-400" />
+              <Mail className="w-3.5 h-3.5 text-[#00d2ff]" />
               <span>1. البريد الإلكتروني للمالك:</span>
             </label>
             <input
@@ -102,7 +102,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="owner@engaseel.online"
               dir="ltr"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
+              className="w-full px-3.5 py-2.5 bg-[#060c1d] border border-[#00d2ff]/30 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] transition"
               required
             />
           </div>
@@ -110,7 +110,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
           {/* 2. PIN Code Input */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              <KeyRound className="w-3.5 h-3.5 text-[#fbbf24]" />
               <span>2. رمز PIN السري:</span>
             </label>
             <input
@@ -120,7 +120,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
               placeholder="••••"
               maxLength={10}
               dir="ltr"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-amber-200 text-xs tracking-widest focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition font-mono"
+              className="w-full px-3.5 py-2.5 bg-[#060c1d] border border-[#00d2ff]/30 rounded-xl text-[#fbbf24] text-xs tracking-widest focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] transition font-mono"
               required
             />
           </div>
@@ -128,7 +128,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
           {/* 3. Password Input */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <Lock className="w-3.5 h-3.5 text-[#00d2ff]" />
               <span>3. كلمة السر الكبرى للمالك:</span>
             </label>
             <input
@@ -136,7 +136,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
+              className="w-full px-3.5 py-2.5 bg-[#060c1d] border border-[#00d2ff]/30 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] transition"
               required
             />
           </div>
@@ -144,7 +144,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-900/30 transition active:scale-[0.99] disabled:opacity-50"
+            className="w-full py-3 bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:from-[#fbbf24] hover:to-[#b45309] text-[#040915] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#f59e0b]/25 transition active:scale-[0.99] disabled:opacity-50"
           >
             {isSubmitting ? (
               <span>جاري التحقق من هوية المالك...</span>

@@ -8,9 +8,9 @@ const CUSTOM_LESSONS_KEY = 'yemen_mechatronics_custom_lessons_v1';
 const OWNER_PASSWORD_STORAGE_KEY = 'yemen_mechatronics_owner_pwd_v1';
 const DB_STATUS_CACHE_KEY = 'yemen_mechatronics_db_status_cache';
 
-// Default master recovery keys for the owner (primary: owner's direct phone number 785502919)
-export const DEFAULT_OWNER_PASSWORD = '785502919';
-export const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
+// Default master recovery keys for the owner (primary: owner's direct phone number 785500075)
+export const DEFAULT_OWNER_PASSWORD = '785500075';
+export const MASTER_OWNER_PASSWORDS = ['785500075', 'mechatronics2026', 'admin785500075', 'owner@yemen'];
 
 // Initial seeded mock users as local fallback
 const INITIAL_USERS: StudentUser[] = [
@@ -69,7 +69,134 @@ export interface NeonDbStatus {
   error?: string;
 }
 
+export const TRIAL_DURATION_SECONDS = 86400; // 24 Hours exact trial limit
+
+export interface TrialStatus {
+  isStarted: boolean;
+  isExpired: boolean;
+  startedAt: number | null;
+  expiresAt: number | null;
+  expiresAtFormatted?: string;
+  usedSeconds: number;
+  remainingSeconds: number;
+  remainingUsageSeconds: number; // Backwards compatible mapping
+  remainingValiditySeconds: number; // Backwards compatible mapping
+  reason?: 'time_limit' | 'validity_limit';
+}
+
 export const authStorage = {
+  // Free Trial Management (24 Hours from the beginning of using the lab)
+  getTrialStatus(): TrialStatus {
+    try {
+      const data = localStorage.getItem('yemen_mechatronics_trial_24h');
+      if (!data) {
+        return {
+          isStarted: false,
+          isExpired: false,
+          startedAt: null,
+          expiresAt: null,
+          usedSeconds: 0,
+          remainingSeconds: TRIAL_DURATION_SECONDS,
+          remainingUsageSeconds: TRIAL_DURATION_SECONDS,
+          remainingValiditySeconds: TRIAL_DURATION_SECONDS
+        };
+      }
+      const parsed = JSON.parse(data);
+      const startedAt = parsed.startedAt ? Number(parsed.startedAt) : null;
+
+      if (!startedAt) {
+        return {
+          isStarted: false,
+          isExpired: false,
+          startedAt: null,
+          expiresAt: null,
+          usedSeconds: 0,
+          remainingSeconds: TRIAL_DURATION_SECONDS,
+          remainingUsageSeconds: TRIAL_DURATION_SECONDS,
+          remainingValiditySeconds: TRIAL_DURATION_SECONDS
+        };
+      }
+
+      const now = Date.now();
+      const expiresAt = parsed.expiresAt ? Number(parsed.expiresAt) : startedAt + (TRIAL_DURATION_SECONDS * 1000);
+      const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+      const remainingSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
+      const isExpired = now >= expiresAt || elapsedSeconds >= TRIAL_DURATION_SECONDS;
+
+      const dateObj = new Date(expiresAt);
+      const expiresAtFormatted = dateObj.toLocaleTimeString('ar-YE', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        day: 'numeric',
+        month: 'short'
+      });
+
+      return {
+        isStarted: true,
+        isExpired,
+        startedAt,
+        expiresAt,
+        expiresAtFormatted,
+        usedSeconds: Math.min(TRIAL_DURATION_SECONDS, elapsedSeconds),
+        remainingSeconds,
+        remainingUsageSeconds: remainingSeconds,
+        remainingValiditySeconds: remainingSeconds,
+        reason: isExpired ? 'time_limit' : undefined
+      };
+    } catch {
+      return {
+        isStarted: false,
+        isExpired: false,
+        startedAt: null,
+        expiresAt: null,
+        usedSeconds: 0,
+        remainingSeconds: TRIAL_DURATION_SECONDS,
+        remainingUsageSeconds: TRIAL_DURATION_SECONDS,
+        remainingValiditySeconds: TRIAL_DURATION_SECONDS
+      };
+    }
+  },
+
+  startTrial(): TrialStatus {
+    const current = this.getTrialStatus();
+    if (!current.isStarted) {
+      const now = Date.now();
+      const expiresAt = now + (TRIAL_DURATION_SECONDS * 1000);
+      const newData = {
+        startedAt: now,
+        expiresAt: expiresAt,
+        usedSeconds: 0
+      };
+      localStorage.setItem('yemen_mechatronics_trial_24h', JSON.stringify(newData));
+      return this.getTrialStatus();
+    }
+    return current;
+  },
+
+  recordTrialUsage(secondsToAdd: number = 1): TrialStatus {
+    const current = this.getTrialStatus();
+    if (!current.isStarted || current.isExpired) return current;
+
+    // Check directly against Date.now() for continuous accuracy
+    const now = Date.now();
+    const expiresAt = current.expiresAt || (current.startedAt! + TRIAL_DURATION_SECONDS * 1000);
+    if (now >= expiresAt) {
+      return this.getTrialStatus();
+    }
+
+    const newUsed = Math.min(TRIAL_DURATION_SECONDS, current.usedSeconds + secondsToAdd);
+    const updateData = {
+      startedAt: current.startedAt,
+      expiresAt: expiresAt,
+      usedSeconds: newUsed
+    };
+    localStorage.setItem('yemen_mechatronics_trial_24h', JSON.stringify(updateData));
+    return this.getTrialStatus();
+  },
+
+  resetTrial() {
+    localStorage.removeItem('yemen_mechatronics_trial_24h');
+  },
   // Local storage cache getters and setters
   getUsers(): StudentUser[] {
     try {
@@ -298,7 +425,7 @@ export const authStorage = {
         success: false, 
         user,
         notActivated: true, 
-        message: 'الحساب غير مفعّل بعد. يرجى التواصل مع المالك لتفعيل الاشتراك عبر الرقم 785502919' 
+        message: 'الحساب غير مفعّل بعد. يرجى التواصل مع المالك لتفعيل الاشتراك عبر الرقم 785500075' 
       };
     }
 
@@ -309,7 +436,7 @@ export const authStorage = {
           success: false,
           user,
           notActivated: true,
-          message: `انتهت صلاحية هذا الحساب في تاريخ (${user.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785502919.`
+          message: `انتهت صلاحية هذا الحساب في تاريخ (${user.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785500075.`
         };
       }
     }
@@ -1021,7 +1148,7 @@ export const authStorage = {
       const ownerUser: StudentUser = {
         id: 'owner_master',
         name: 'المالك ومدير المنصة (Owner)',
-        phone: '785502919',
+        phone: '785500075',
         university: 'أكاديمية الميكاترونكس اليمنية',
         isAcademySubscriber: true,
         isActivated: true,
@@ -1045,8 +1172,8 @@ export const authStorage = {
     }
 
     const activeOwnerPass = this.getOwnerPassword();
-    const isValidPass = cleanPass === activeOwnerPass || MASTER_OWNER_PASSWORDS.includes(cleanPass) || cleanPass === '785502919' || cleanPass === 'mechatronics2026';
-    const isValidPin = cleanPin === '9938' || cleanPin === '7855' || cleanPin === '1234' || cleanPin === activeOwnerPass.slice(-4) || cleanPass.includes(cleanPin);
+    const isValidPass = cleanPass === activeOwnerPass || MASTER_OWNER_PASSWORDS.includes(cleanPass) || cleanPass === '785500075' || cleanPass === 'mechatronics2026';
+    const isValidPin = cleanPin === '9938' || cleanPin === '7855' || cleanPin === '0075' || cleanPin === '1234' || cleanPin === activeOwnerPass.slice(-4) || cleanPass.includes(cleanPin);
     const isValidEmail = cleanEmail.includes('@') || cleanEmail.includes('owner') || cleanEmail.includes('admin') || cleanEmail.length >= 4;
 
     if (isValidPass && isValidPin && isValidEmail) {
@@ -1054,7 +1181,7 @@ export const authStorage = {
       const ownerUser: StudentUser = {
         id: 'owner_master',
         name: 'المالك ومدير المنصة (Owner)',
-        phone: '785502919',
+        phone: '785500075',
         university: 'أكاديمية الميكاترونكس اليمنية',
         isAcademySubscriber: true,
         isActivated: true,
@@ -1192,7 +1319,7 @@ export const authStorage = {
     return JSON.stringify({
       version: '1.0',
       exportedAt: new Date().toISOString(),
-      ownerPhone: '785502919',
+      ownerPhone: '785500075',
       currentOwnerPassword: this.getOwnerPassword(),
       users: this.getUsers(),
       requests: this.getAccessRequests(),

@@ -21,7 +21,7 @@ export default async function handler(req: any, res: any) {
 
   await initDatabase();
 
-  const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
+  const MASTER_OWNER_PASSWORDS = ['785500075', 'mechatronics2026', 'admin785500075', 'owner@yemen'];
 
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader.trim();
@@ -84,7 +84,7 @@ export default async function handler(req: any, res: any) {
         SELECT value FROM system_settings WHERE key = 'owner_password';
       `);
 
-      const ownerPassword = settingsQuery.rows.length > 0 ? settingsQuery.rows[0].value : '785502919';
+      const ownerPassword = settingsQuery.rows.length > 0 ? settingsQuery.rows[0].value : '785500075';
 
       const users = usersQuery.rows.map(u => ({
         ...u,

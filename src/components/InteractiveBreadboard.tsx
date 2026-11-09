@@ -562,18 +562,18 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-slate-100 font-sans select-none">
+    <div className="bg-[#0a1329] border-2 border-[#00d2ff]/30 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 text-slate-100 font-sans select-none">
       {/* Header & Instructions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-3 gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#00d2ff]/20 pb-3 gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30">
-            <Layers className="w-6 h-6" />
+          <div className="p-2.5 rounded-2xl bg-[#0e2554] text-[#00d2ff] border border-[#00d2ff]/40 shadow-md">
+            <Layers className="w-6 h-6 text-[#fbbf24]" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">
+            <h3 className="text-base font-bold text-white">
               معمل لوحة التجارب وتوصيل الأسلاك والمنافذ (Breadboard & Real-Time Wiring Lab)
             </h3>
-            <span className="text-xs text-purple-400 font-mono">
+            <span className="text-xs text-[#00d2ff] font-mono">
               Click any pin or hole to connect a wire • Realistic SPICE Continuity & Current Flow
             </span>
           </div>
@@ -581,18 +581,18 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
 
         {/* Wires counter, Zoom controls & Clean button */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-0.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800 text-xs font-mono">
+          <div className="flex items-center gap-0.5 bg-[#060c1d] px-2 py-1 rounded-xl border border-[#00d2ff]/20 text-xs font-mono">
             <button
               onClick={() => setZoom(z => Math.max(0.35, Number((z - 0.1).toFixed(1))))}
-              className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded font-bold"
+              className="px-1.5 py-0.5 hover:bg-[#0a1329] text-slate-300 rounded font-bold"
               title="تصغير اللوحة"
             >
               -
             </button>
-            <span className="px-1 text-[11px] text-slate-400 font-bold">{Math.round(zoom * 100)}%</span>
+            <span className="px-1 text-[11px] text-[#00d2ff] font-bold">{Math.round(zoom * 100)}%</span>
             <button
               onClick={() => setZoom(z => Math.min(1.5, Number((z + 0.1).toFixed(1))))}
-              className="px-1.5 py-0.5 hover:bg-slate-800 text-slate-300 rounded font-bold"
+              className="px-1.5 py-0.5 hover:bg-[#0a1329] text-slate-300 rounded font-bold"
               title="تكبير اللوحة"
             >
               +
@@ -605,19 +605,19 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
                 else if (w < 1024) setZoom(0.75);
                 else setZoom(1.0);
               }}
-              className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-purple-400 rounded text-[10px] font-bold mr-1 border border-slate-800"
+              className="px-1.5 py-0.5 bg-[#0a1329] hover:bg-[#0e2554] text-[#00d2ff] rounded text-[10px] font-bold mr-1 border border-[#00d2ff]/30"
               title="ملاءمة حجم اللوحة تلقائياً مع شاشتك"
             >
               ملاءمة
             </button>
           </div>
 
-          <span className="text-xs font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300">
-            الأسلاك: <span className="text-purple-400 font-bold">{wires.length}</span>
+          <span className="text-xs font-mono bg-[#060c1d] px-2.5 py-1 rounded-xl border border-[#00d2ff]/20 text-slate-300">
+            الأسلاك: <span className="text-[#fbbf24] font-bold">{wires.length}</span>
           </span>
           <button
             onClick={() => loadPresetCircuit('clear')}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
+            className="px-3 py-1.5 bg-[#0e2554] hover:bg-rose-950/60 hover:text-rose-300 rounded-xl text-xs font-semibold flex items-center gap-1 transition border border-[#00d2ff]/20"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">مسح الأسلاك</span>
@@ -626,11 +626,11 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
       </div>
 
       {/* Wire Colors & Preset Quick-Wire Toolbar */}
-      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="bg-[#060c1d] p-3 rounded-2xl border border-[#00d2ff]/20 flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Wire Color Picker */}
         <div className="flex items-center gap-2">
           <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-            <Palette className="w-4 h-4 text-purple-400" />
+            <Palette className="w-4 h-4 text-[#00d2ff]" />
             لون السلك:
           </span>
           <div className="flex items-center gap-1.5">
@@ -650,22 +650,22 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
 
         {/* Preset Pre-wired Circuits */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-slate-400 font-semibold">دوائر جاهزة للتجربة:</span>
+          <span className="text-[#00d2ff] font-semibold">دوائر جاهزة للتجربة:</span>
           <button
             onClick={() => loadPresetCircuit('led')}
-            className="px-2.5 py-1 bg-slate-900 hover:bg-purple-600 rounded-lg text-slate-200 transition font-medium"
+            className="px-2.5 py-1 bg-[#0a1329] hover:bg-gradient-to-r hover:from-[#0088ff] hover:to-[#0055ea] rounded-xl text-slate-200 hover:text-white transition font-medium border border-[#00d2ff]/20"
           >
             + دائرة LED ومقاومة
           </button>
           <button
             onClick={() => loadPresetCircuit('motor')}
-            className="px-2.5 py-1 bg-slate-900 hover:bg-purple-600 rounded-lg text-slate-200 transition font-medium"
+            className="px-2.5 py-1 bg-[#0a1329] hover:bg-gradient-to-r hover:from-[#0088ff] hover:to-[#0055ea] rounded-xl text-slate-200 hover:text-white transition font-medium border border-[#00d2ff]/20"
           >
             + دائرة محرك DC
           </button>
           <button
             onClick={() => loadPresetCircuit('servo')}
-            className="px-2.5 py-1 bg-slate-900 hover:bg-purple-600 rounded-lg text-slate-200 transition font-medium"
+            className="px-2.5 py-1 bg-[#0a1329] hover:bg-gradient-to-r hover:from-[#0088ff] hover:to-[#0055ea] rounded-xl text-slate-200 hover:text-white transition font-medium border border-[#00d2ff]/20"
           >
             + دائرة محرك سيرفو مع أردوينو
           </button>
@@ -806,16 +806,16 @@ export const InteractiveBreadboard: React.FC<InteractiveBreadboardProps> = ({
 
       {/* Pending Port Tip Bar */}
       {pendingPort && (
-        <div className="bg-purple-950/70 border border-purple-500/60 p-2.5 rounded-xl text-xs flex items-center justify-between text-purple-200 animate-pulse">
+        <div className="bg-[#0e2554] border border-[#00d2ff]/60 p-2.5 rounded-2xl text-xs flex items-center justify-between text-[#00d2ff] animate-pulse shadow-lg">
           <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-purple-400 shrink-0" />
+            <Info className="w-4 h-4 text-[#fbbf24] shrink-0" />
             <span>
               تم اختيار المنفذ: <strong className="text-white font-mono">{pendingPort.name}</strong>. انقر الآن على المنفذ الآخر لربط السلك!
             </span>
           </div>
           <button
             onClick={() => setPendingPort(null)}
-            className="px-2 py-0.5 bg-purple-900 hover:bg-purple-800 rounded text-[11px] font-bold"
+            className="px-2.5 py-1 bg-[#0088ff] hover:bg-[#0070d6] text-white rounded-xl text-[11px] font-bold transition"
           >
             إلغاء التوصيل (Esc)
           </button>

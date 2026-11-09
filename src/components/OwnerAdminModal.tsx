@@ -43,6 +43,7 @@ import {
 import { StudentUser, Experiment, AcademicYear, LabCategory, AccessRequest } from '../types/mechatronics';
 import { authStorage, DEFAULT_OWNER_PASSWORD, MASTER_OWNER_PASSWORDS, NeonDbStatus } from '../services/authStorage';
 import { YEMENI_UNIVERSITIES } from '../data/curriculumData';
+import { SECRET_ACTIVATION_CODES, getUsedActivationCodes } from '../data/activationCodes';
 
 interface OwnerAdminModalProps {
   isOpen: boolean;
@@ -55,7 +56,10 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   onClose,
   onLessonAdded,
 }) => {
-  const [activeTab, setActiveTab] = useState<'requests' | 'users' | 'create_account' | 'activate' | 'neon_db' | 'add_lesson' | 'security'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'users' | 'create_account' | 'activation_codes' | 'activate' | 'neon_db' | 'add_lesson' | 'security'>('requests');
+  const [codeSearchQuery, setCodeSearchQuery] = useState<string>('');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [usedCodesSet, setUsedCodesSet] = useState<Set<string>>(() => getUsedActivationCodes());
   const [usersList, setUsersList] = useState<StudentUser[]>([]);
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
   const [neonStatus, setNeonStatus] = useState<NeonDbStatus | null>(null);
@@ -447,25 +451,25 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   const pendingUsers = usersList.filter(u => !u.isActivated).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-slate-900 border-2 border-amber-500/40 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans text-slate-100">
+    <div className="fixed inset-0 z-50 bg-[#040915]/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-[#0a1329] border-2 border-[#00d2ff]/40 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans text-slate-100 ring-1 ring-[#f59e0b]/30">
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 sm:p-5 bg-[#060c1d] border-b border-[#00d2ff]/20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-950/40">
-              <ShieldCheck className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-[#0e2554] text-[#fbbf24] border border-[#00d2ff]/40 flex items-center justify-center p-1 shadow-lg shadow-[#0088ff]/20">
+              <img src="/logo.png" alt="الشعار" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-base text-white">
-                  لوحة تحكم وإدارة المالك (Owner Administration Portal)
+                <h3 className="font-black text-sm sm:text-base text-white">
+                  المعلم الإفتراضي لهندسة الميكاترونكس • لوحة تحكم المالك
                 </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/40">
                   صلاحيات الإدارة الكاملة
                 </span>
               </div>
-              <span className="text-xs text-slate-400 font-mono">
-                أكاديمية الميكاترونكس اليمنية • هاتف المالك: 785502919
+              <span className="text-xs text-[#00d2ff] font-mono">
+                أكاديمية الميكاترونكس اليمنية • هاتف المالك المعتمد: 785500075
               </span>
             </div>
           </div>
@@ -572,6 +576,21 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
           >
             <UserPlus className="w-4 h-4 text-emerald-400" />
             <span>إنشاء حساب وإرسال البيانات</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('activation_codes');
+              setUsedCodesSet(getUsedActivationCodes());
+            }}
+            className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'activation_codes'
+                ? 'border-indigo-500 text-indigo-300 bg-slate-900/40'
+                : 'border-transparent text-indigo-400 hover:text-indigo-200'
+            }`}
+          >
+            <KeyRound className="w-4 h-4 text-indigo-400" />
+            <span>أكواد التفعيل المعتمدة ({Array.from(SECRET_ACTIVATION_CODES).length})</span>
           </button>
 
           <button
@@ -1062,7 +1081,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                       required
                       value={createPhone}
                       onChange={(e) => setCreatePhone(e.target.value)}
-                      placeholder="مثال: 771234567 أو 734567890 أو 785502919"
+                      placeholder="مثال: 771234567 أو 734567890 أو 785500075"
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-sm tracking-wider focus:outline-none focus:border-emerald-500"
                     />
                   </div>
@@ -1256,7 +1275,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                 </div>
                 <h4 className="font-bold text-white text-base">تفعيل حساب الطالب من خلال رقم الهاتف</h4>
                 <p className="text-xs text-slate-400">
-                  عند وصول طلب اشتراك من الطالب إلى هاتفك (785502919)، أدخل رقمه هنا ليتم منحه الصلاحية فوراً
+                  عند وصول طلب اشتراك من الطالب إلى هاتفك (785500075)، أدخل رقمه هنا ليتم منحه الصلاحية فوراً
                 </p>
               </div>
 
@@ -1717,7 +1736,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                     type="button"
                     onClick={handleResetPassword}
                     className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition flex items-center gap-1.5"
-                    title="استعادة الافتراضية (785502919)"
+                    title="استعادة الافتراضية (785500075)"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>استعادة الافتراضية</span>
@@ -1736,13 +1755,13 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px] text-center">
                   <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl text-amber-300 font-bold">
-                    785502919
+                    785500075
                   </div>
                   <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl text-purple-300">
                     mechatronics2026
                   </div>
                   <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl text-indigo-300">
-                    admin785502919
+                    admin785500075
                   </div>
                 </div>
               </div>
@@ -1760,6 +1779,116 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                   <FileCheck className="w-3.5 h-3.5 text-purple-400" />
                   <span>تصدير JSON</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: SECRET ACTIVATION CODES REGISTRY (FOR OWNER ONLY) */}
+          {activeTab === 'activation_codes' && (
+            <div className="space-y-4">
+              {/* Header Box */}
+              <div className="bg-slate-950/80 border border-indigo-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-5 h-5 text-indigo-400" />
+                    <h4 className="font-bold text-sm text-white">سجل أكواد التفعيل المعتمدة للمشتركين</h4>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                      خاص بالمالك حصراً
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    هذه الأكواد خاصة بك كمالك للمنصة لتقديمها للطلاب عند الاشتراك ليقوموا بتفعيل حساباتهم فورياً.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-mono">
+                  <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-center">
+                    <span className="text-[10px] text-slate-500 block font-sans">إجمالي الأكواد</span>
+                    <span className="text-white font-bold">{Array.from(SECRET_ACTIVATION_CODES).length}</span>
+                  </div>
+                  <div className="bg-slate-900 border border-emerald-900/40 px-3 py-1.5 rounded-xl text-center">
+                    <span className="text-[10px] text-emerald-500 block font-sans">المتاحة</span>
+                    <span className="text-emerald-400 font-bold">{Array.from(SECRET_ACTIVATION_CODES).length - usedCodesSet.size}</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-center">
+                    <span className="text-[10px] text-slate-500 block font-sans">المستخدمة</span>
+                    <span className="text-amber-400 font-bold">{usedCodesSet.size}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search and Action Bar */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={codeSearchQuery}
+                    onChange={(e) => setCodeSearchQuery(e.target.value)}
+                    placeholder="ابحث في الأكواد (مثال: RQ-9938 أو 8015)..."
+                    dir="ltr"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-9 pl-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    const allCodesText = Array.from(SECRET_ACTIVATION_CODES).join('\n');
+                    navigator.clipboard.writeText(allCodesText);
+                    setCopiedCode('ALL');
+                    setTimeout(() => setCopiedCode(null), 2000);
+                  }}
+                  className="px-3.5 py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition shrink-0"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{copiedCode === 'ALL' ? 'تم نسخ جميع الأكواد!' : 'نسخ قائمة الأكواد بالكامل'}</span>
+                </button>
+              </div>
+
+              {/* Codes Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-[500px] overflow-y-auto pr-1">
+                {Array.from(SECRET_ACTIVATION_CODES)
+                  .filter(c => !codeSearchQuery || c.toLowerCase().includes(codeSearchQuery.toLowerCase()))
+                  .map((code, idx) => {
+                    const isUsed = usedCodesSet.has(code) || usedCodesSet.has(code.toUpperCase());
+                    const isCopied = copiedCode === code;
+                    return (
+                      <div
+                        key={code}
+                        onClick={() => {
+                          navigator.clipboard.writeText(code);
+                          setCopiedCode(code);
+                          setTimeout(() => setCopiedCode(null), 1500);
+                        }}
+                        className={`p-2.5 rounded-xl border flex flex-col justify-between cursor-pointer transition select-none group relative ${
+                          isUsed
+                            ? 'bg-slate-950/60 border-slate-800/80 text-slate-500'
+                            : 'bg-slate-950 hover:bg-indigo-950/40 border-slate-800 hover:border-indigo-500/50 text-slate-200'
+                        }`}
+                        title="انقر لنسخ الكود فوراً"
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[10px] text-slate-500 font-mono">#{idx + 1}</span>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                            isUsed
+                              ? 'bg-slate-800 text-slate-400'
+                              : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          }`}>
+                            {isUsed ? 'مستخدم' : 'جاهز'}
+                          </span>
+                        </div>
+
+                        <div className="font-mono text-xs font-bold text-indigo-300 tracking-wider truncate py-0.5">
+                          {code}
+                        </div>
+
+                        <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-900 group-hover:text-indigo-400 transition">
+                          <span>{isCopied ? 'تم النسخ ✓' : 'انقر للنسخ'}</span>
+                          <Copy className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}

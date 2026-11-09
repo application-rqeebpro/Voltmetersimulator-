@@ -39,10 +39,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 
   const buttonClasses =
     variant === 'primary'
-      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-950/50'
+      ? 'bg-gradient-to-r from-[#0088ff] to-[#0055ea] hover:from-[#0070d6] hover:to-[#0040b0] text-white shadow-lg shadow-[#0088ff]/30 ring-1 ring-[#00d2ff]/40'
       : variant === 'badge'
-      ? 'bg-slate-900 hover:bg-slate-800 text-purple-300 border border-purple-500/30'
-      : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/60 hover:border-purple-500/50';
+      ? 'bg-[#0a1329] hover:bg-[#0e2554] text-[#00d2ff] border border-[#00d2ff]/30'
+      : 'bg-[#0a1329] hover:bg-[#0e2554] text-slate-200 border border-[#00d2ff]/20 hover:border-[#00d2ff]';
 
   return (
     <>
@@ -51,31 +51,31 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition select-none ${buttonClasses} ${className}`}
         title="تثبيت المعمل كتطبيق مستقل على هاتفك المحمول"
       >
-        <Smartphone className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+        <Smartphone className="w-3.5 h-3.5 text-[#00d2ff] animate-pulse" />
         <span>{compact ? 'تثبيت' : 'تثبيت في الهاتف'}</span>
       </button>
 
       {/* Mobile Installation Guide Modal */}
       {showGuideModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 text-slate-100 font-sans">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#040915]/85 backdrop-blur-md p-4 text-slate-100 font-sans">
+          <div className="w-full max-w-md bg-[#0a1329] border-2 border-[#00d2ff]/40 rounded-3xl p-6 shadow-2xl relative space-y-4 ring-1 ring-[#f59e0b]/30">
             {/* Close button */}
             <button
               onClick={() => setShowGuideModal(false)}
-              className="absolute top-4 left-4 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+              className="absolute top-4 left-4 p-2 rounded-xl bg-[#060c1d] hover:bg-[#0e2554] text-slate-400 hover:text-white transition border border-[#00d2ff]/20"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-600/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
-                <Smartphone className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-[#0e2554] text-[#00d2ff] border border-[#00d2ff]/40 flex items-center justify-center p-1 shadow-md">
+                <img src="/logo.png" alt="الشعار" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">
-                  تثبيت معمل الميكاترونكس على الهاتف
+                  تثبيت المعلم الإفتراضي على الهاتف
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#00d2ff]">
                   يعمل كتطبيق كامل بدون شريط المتصفح ومع حفظ البيانات محلياً
                 </p>
               </div>
@@ -83,8 +83,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 
             {isIOS ? (
               /* iOS Safari Instructions */
-              <div className="space-y-3 bg-slate-950/80 p-4 rounded-2xl border border-slate-800 text-xs">
-                <div className="font-bold text-amber-400 flex items-center gap-2">
+              <div className="space-y-3 bg-[#060c1d] p-4 rounded-2xl border border-[#00d2ff]/20 text-xs">
+                <div className="font-bold text-[#fbbf24] flex items-center gap-2">
                   <Share2 className="w-4 h-4" />
                   <span>خطوات التثبيت على أجهزة iPhone / iPad (Safari):</span>
                 </div>
@@ -93,26 +93,26 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                     اضغط على زر <strong className="text-white">المشاركة (Share)</strong> في شريط متصفح سفاري بالأسفل.
                   </li>
                   <li>
-                    مرر لأسفل واختر <strong className="text-white">إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong> <PlusSquare className="w-3.5 h-3.5 inline mx-1 text-purple-400" />.
+                    مرر لأسفل واختر <strong className="text-white">إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong> <PlusSquare className="w-3.5 h-3.5 inline mx-1 text-[#00d2ff]" />.
                   </li>
                   <li>
                     اضغط على <strong className="text-white">إضافة (Add)</strong> في أعلى الزاوية.
                   </li>
                   <li>
-                    سيظهر تطبيق المعمل مباشرة على شاشة هاتفك مع أيقونة الميكاترونكس الرسمية!
+                    سيظهر تطبيق المعلم مباشرة على شاشة هاتفك مع أيقونة المنصة الرسمية!
                   </li>
                 </ol>
               </div>
             ) : (
               /* Android Chrome / Edge Instructions */
-              <div className="space-y-3 bg-slate-950/80 p-4 rounded-2xl border border-slate-800 text-xs">
-                <div className="font-bold text-purple-400 flex items-center gap-2">
+              <div className="space-y-3 bg-[#060c1d] p-4 rounded-2xl border border-[#00d2ff]/20 text-xs">
+                <div className="font-bold text-[#00d2ff] flex items-center gap-2">
                   <Globe className="w-4 h-4" />
                   <span>خطوات التثبيت على أجهزة أندرويد (Android / Chrome):</span>
                 </div>
                 <ol className="list-decimal list-inside space-y-2 text-slate-300 leading-relaxed">
                   <li>
-                    إذا ظهرت رسالة التثبيت التلقائية في أسفل الشاشة، اضغط <strong className="text-white">تثبيت (Install)</strong>.
+                    إذا ظهرت رسالة التثبيت التلقائية في أسفل الشاشة، اضغط <strong className="text-[#fbbf24]">تثبيت (Install)</strong>.
                   </li>
                   <li>
                     أو اضغط على زر القائمة <strong className="text-white">(الثلاث نقاط ⋮)</strong> في متصفح كروم.
@@ -134,16 +134,16 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   await install();
                   setShowGuideModal(false);
                 }}
-                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-xs transition shadow-lg shadow-purple-950 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-gradient-to-r from-[#0088ff] to-[#0055ea] hover:from-[#0070d6] hover:to-[#0040b0] text-white rounded-xl font-bold text-xs transition shadow-lg shadow-[#0088ff]/30 flex items-center justify-center gap-2 ring-1 ring-[#00d2ff]/40"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 text-[#fbbf24]" />
                 <span>بدء التثبيت الآن</span>
               </button>
             )}
 
             <button
               onClick={() => setShowGuideModal(false)}
-              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition"
+              className="w-full py-2 bg-[#0e2554] hover:bg-[#153472] text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition border border-[#00d2ff]/20"
             >
               تم، حسناً
             </button>

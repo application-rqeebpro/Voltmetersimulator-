@@ -20,7 +20,7 @@ export default async function handler(req: any, res: any) {
 
   await initDatabase();
 
-  const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
+  const MASTER_OWNER_PASSWORDS = ['785500075', 'mechatronics2026', 'admin785500075', 'owner@yemen'];
 
   const checkIsOwner = async (): Promise<boolean> => {
     const authHeader = req.headers['authorization'] || '';

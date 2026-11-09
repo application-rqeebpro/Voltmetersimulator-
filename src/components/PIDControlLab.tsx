@@ -204,25 +204,25 @@ export const PIDControlLab: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-5 shadow-2xl flex flex-col gap-5 text-slate-100 font-sans">
+    <div className="bg-[#0a1329] border-2 border-[#00d2ff]/30 rounded-3xl p-5 shadow-2xl flex flex-col gap-5 text-slate-100 font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-3 gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#00d2ff]/20 pb-3 gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30">
-            <TrendingUp className="w-6 h-6" />
+          <div className="p-2.5 rounded-2xl bg-[#0e2554] text-[#00d2ff] border border-[#00d2ff]/40 shadow-md">
+            <TrendingUp className="w-6 h-6 text-[#fbbf24]" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">
+            <h3 className="text-base font-bold text-white">
               معمل التحكم الآلي وموالفة متحكم PID التفاعلي
             </h3>
-            <span className="text-xs text-purple-400 font-mono">
+            <span className="text-xs text-[#00d2ff] font-mono">
               Proportional-Integral-Derivative Closed-Loop Step Response
             </span>
           </div>
         </div>
 
         {/* System Selector */}
-        <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+        <div className="flex items-center gap-1.5 bg-[#060c1d] p-1.5 rounded-2xl border border-[#00d2ff]/20 text-xs overflow-x-auto no-scrollbar">
           {(
             [
               { id: 'motor', name: 'سرعة محرك DC' },
@@ -234,10 +234,10 @@ export const PIDControlLab: React.FC = () => {
             <button
               key={sys.id}
               onClick={() => setParams(prev => ({ ...prev, systemType: sys.id }))}
-              className={`px-3 py-1.5 rounded-lg transition font-medium ${
+              className={`px-3 py-1.5 rounded-xl transition font-medium whitespace-nowrap ${
                 params.systemType === sys.id
-                  ? 'bg-purple-600 text-white font-bold shadow'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-[#0088ff] to-[#0055ea] text-white font-bold shadow-md ring-1 ring-[#00d2ff]'
+                  : 'text-slate-400 hover:text-white hover:bg-[#0a1329]'
               }`}
             >
               {sys.name}
@@ -278,9 +278,9 @@ export const PIDControlLab: React.FC = () => {
 
           {/* Performance Metrics Bar */}
           <div className="grid grid-cols-4 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center font-mono">
-            <div className="p-1.5 bg-slate-900 rounded-lg">
+            <div className="p-1.5 bg-[#060c1d] rounded-xl border border-slate-800">
               <div className="text-[10px] text-slate-400 font-sans">زمن الصعود (Rise Time Tr)</div>
-              <div className="text-sm font-bold text-purple-400">{metrics.riseTime} ثانية</div>
+              <div className="text-sm font-bold text-[#00d2ff]">{metrics.riseTime} ثانية</div>
             </div>
             <div className="p-1.5 bg-slate-900 rounded-lg">
               <div className="text-[10px] text-slate-400 font-sans">أقصى تجاوز (Overshoot Mp%)</div>
@@ -334,21 +334,21 @@ export const PIDControlLab: React.FC = () => {
             {params.systemType === 'ball_beam' && (
               <div className="w-full flex flex-col items-center justify-center">
                 <div
-                  className="w-48 h-3 bg-purple-600 rounded-full relative transition-transform duration-75 shadow-lg"
+                  className="w-48 h-3 bg-gradient-to-r from-[#0088ff] to-[#00d2ff] rounded-full relative transition-transform duration-75 shadow-lg shadow-[#0088ff]/30"
                   style={{
                     transform: `rotate(${(currentVal - params.setpoint) * 0.4}deg)`
                   }}
                 >
                   {/* The Ball */}
                   <div
-                    className="w-5 h-5 rounded-full bg-amber-400 border border-amber-600 shadow-md absolute -top-4 transition-all duration-75"
+                    className="w-5 h-5 rounded-full bg-[#fbbf24] border border-[#d97706] shadow-md absolute -top-4 transition-all duration-75"
                     style={{
                       left: `${Math.max(5, Math.min(85, (currentVal / 100) * 100))}%`
                     }}
                   />
                 </div>
                 <div className="w-6 h-6 bg-slate-700 clip-triangle mt-1" />
-                <span className="text-[11px] font-mono text-purple-300 mt-2">
+                <span className="text-[11px] font-mono text-[#00d2ff] mt-2 font-bold">
                   موضع الكرة: {currentVal.toFixed(1)} cm
                 </span>
               </div>

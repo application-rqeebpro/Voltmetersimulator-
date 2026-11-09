@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getPool, initDatabase } from './_db';
 
-const MASTER_OWNER_PASSWORDS = ['785502919', 'mechatronics2026', 'admin785502919', 'owner@yemen'];
+const MASTER_OWNER_PASSWORDS = ['785500075', 'mechatronics2026', 'admin785500075', 'owner@yemen'];
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -279,7 +279,7 @@ export default async function handler(req: any, res: any) {
             isActivated: false,
             role: userRow.role
           },
-          message: 'الحساب غير مفعّل بعد في قاعدة البيانات. يرجى التواصل مع المالك لتفعيل الاشتراك عبر الرقم 785502919.'
+          message: 'الحساب غير مفعّل بعد في قاعدة البيانات. يرجى التواصل مع المالك لتفعيل الاشتراك عبر الرقم 785500075.'
         });
       }
 
@@ -290,7 +290,7 @@ export default async function handler(req: any, res: any) {
           return res.status(403).json({
             success: false,
             expired: true,
-            message: `انتهت صلاحية هذا الحساب في تاريخ (${userRow.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785502919.`
+            message: `انتهت صلاحية هذا الحساب في تاريخ (${userRow.expiresAt}). يرجى التواصل مع المالك للتجديد عبر 785500075.`
           });
         }
       }
@@ -329,7 +329,7 @@ export default async function handler(req: any, res: any) {
       const cleanPass = String(password || '').trim();
 
       // Check DB system_settings for custom owner password
-      let dbOwnerPass = '785502919';
+      let dbOwnerPass = '785500075';
       try {
         const resSettings = await pool.query("SELECT value FROM system_settings WHERE key = 'owner_password';");
         if (resSettings.rows.length > 0) {
@@ -348,7 +348,7 @@ export default async function handler(req: any, res: any) {
           user: {
             id: 'owner_master',
             name: 'المالك ومدير المنصة (Owner)',
-            phone: '785502919',
+            phone: '785500075',
             university: 'أكاديمية الميكاترونكس اليمنية',
             isAcademySubscriber: true,
             isActivated: true,

@@ -4,22 +4,71 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Royal Navy & Engineering Palette extracted from the brand badge */
+  --color-royal-950: #040915;
+  --color-royal-900: #0a1329;
+  --color-royal-800: #0f1d3d;
+  --color-royal-700: #162852;
+  --color-cyan-glow: #00d2ff;
+  --color-electric-blue: #0088ff;
+  --color-golden-accent: #f59e0b;
+  --color-golden-light: #fbbf24;
+}
+
 @layer utilities {
-  .bg-grid-pattern {
-    background-size: 24px 24px;
+  /* Blueprint & PCB Circuit Grid Backgrounds */
+  .bg-blueprint-grid {
+    background-size: 28px 28px;
     background-image: 
-      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 180, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 180, 255, 0.08) 1px, transparent 1px);
   }
+
+  .bg-pcb-circuit-pattern {
+    background-color: #070e1e;
+    background-image: 
+      radial-gradient(rgba(0, 210, 255, 0.12) 1px, transparent 1px),
+      radial-gradient(rgba(245, 158, 11, 0.08) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: 0 0, 16px 16px;
+  }
+
+  .bg-radial-glow {
+    background: radial-gradient(ellipse at center, rgba(0, 136, 255, 0.15) 0%, rgba(4, 9, 21, 0.95) 75%);
+  }
+
   .bg-breadboard-pattern {
     background-size: 20px 20px;
     background-image: radial-gradient(circle, #334155 1.5px, transparent 1.5px);
   }
+
   .bg-oscilloscope-grid {
     background-size: 32px 32px;
     background-image: 
-      linear-gradient(to right, rgba(16, 185, 129, 0.15) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(16, 185, 129, 0.15) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 210, 255, 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 210, 255, 0.18) 1px, transparent 1px);
+  }
+
+  /* Glassmorphism & Metallic Gold / Cyan Borders */
+  .engineering-card {
+    background: linear-gradient(135deg, rgba(10, 22, 48, 0.88) 0%, rgba(6, 14, 32, 0.94) 100%);
+    border: 1px solid rgba(0, 210, 255, 0.22);
+    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .engineering-card-gold {
+    background: linear-gradient(135deg, rgba(15, 28, 58, 0.92) 0%, rgba(8, 16, 36, 0.96) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.6), 0 0 15px -3px rgba(245, 158, 11, 0.15);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 20px -2px rgba(0, 210, 255, 0.35);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 20px -2px rgba(245, 158, 11, 0.35);
   }
 
   /* Safe Area Utilities for Notches and Home Indicators */

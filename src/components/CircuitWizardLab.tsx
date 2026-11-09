@@ -172,6 +172,7 @@ export type ComponentKind =
   | 'battery_aa' 
   | 'battery_9v' 
   | 'battery_4aa'
+  | 'dc_supply'
   | 'switch_spst' 
   | 'push_button' 
   | 'potentiometer'
@@ -179,11 +180,23 @@ export type ComponentKind =
   | 'led' 
   | 'buzzer' 
   | 'motor' 
+  | 'servo'
+  | 'stepper'
   | 'resistor' 
   | 'capacitor' 
   | 'diode' 
+  | 'transistor'
+  | 'relay'
+  | 'arduino'
+  | 'esp32'
+  | 'ultrasonic'
+  | 'ir_sensor'
+  | 'temp_sensor'
+  | 'ldr'
+  | 'motor_driver'
   | 'voltmeter' 
-  | 'ammeter';
+  | 'ammeter'
+  | 'multimeter';
 
 export interface CWElement {
   id: string;
@@ -253,6 +266,10 @@ export const COMPONENT_PINS: Record<ComponentKind, CWPinDef[]> = {
     { id: 'pos', name: '+', nameAr: 'موجب', relX: -10, relY: -60 },
     { id: 'neg', name: '-', nameAr: 'سالب', relX: 10, relY: -60 }
   ],
+  dc_supply: [
+    { id: 'pos', name: '+', nameAr: 'موجب DC (+)', relX: -20, relY: 25 },
+    { id: 'neg', name: '-', nameAr: 'سالب DC (-)', relX: 20, relY: 25 }
+  ],
   switch_spst: [
     { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -13, relY: 20 },
     { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 13, relY: 20 }
@@ -286,6 +303,18 @@ export const COMPONENT_PINS: Record<ComponentKind, CWPinDef[]> = {
     { id: 'anode', name: 'A', nameAr: 'أنود', relX: -18, relY: 0 },
     { id: 'cathode', name: 'K', nameAr: 'كاثود', relX: 18, relY: 0 }
   ],
+  transistor: [
+    { id: 'base', name: 'B', nameAr: 'قاعدة Base', relX: -18, relY: 0 },
+    { id: 'collector', name: 'C', nameAr: 'مجمع Collector', relX: 12, relY: -16 },
+    { id: 'emitter', name: 'E', nameAr: 'مشع Emitter', relX: 12, relY: 16 }
+  ],
+  relay: [
+    { id: 'co1', name: 'CO1', nameAr: 'ملف 1', relX: -22, relY: -16 },
+    { id: 'co2', name: 'CO2', nameAr: 'ملف 2', relX: -22, relY: 16 },
+    { id: 'com', name: 'COM', nameAr: 'مشترك COM', relX: 22, relY: 0 },
+    { id: 'no', name: 'NO', nameAr: 'مفتوح NO', relX: 22, relY: -18 },
+    { id: 'nc', name: 'NC', nameAr: 'مغلق NC', relX: 22, relY: 18 }
+  ],
   buzzer: [
     { id: 'pos', name: '+', nameAr: 'موجب', relX: -14, relY: 16 },
     { id: 'neg', name: '-', nameAr: 'سالب', relX: 14, relY: 16 }
@@ -294,6 +323,56 @@ export const COMPONENT_PINS: Record<ComponentKind, CWPinDef[]> = {
     { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -15, relY: 18 },
     { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 15, relY: 18 }
   ],
+  servo: [
+    { id: 'vcc', name: 'VCC', nameAr: 'موجب VCC', relX: -15, relY: 28 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: 0, relY: 28 },
+    { id: 'signal', name: 'SIG', nameAr: 'إشارة Signal', relX: 15, relY: 28 }
+  ],
+  stepper: [
+    { id: 'a1', name: 'A+', nameAr: 'ملف A+', relX: -20, relY: 25 },
+    { id: 'a2', name: 'A-', nameAr: 'ملف A-', relX: -7, relY: 25 },
+    { id: 'b1', name: 'B+', nameAr: 'ملف B+', relX: 7, relY: 25 },
+    { id: 'b2', name: 'B-', nameAr: 'ملف B-', relX: 20, relY: 25 }
+  ],
+  arduino: [
+    { id: '5v', name: '5V', nameAr: 'تغذية 5V', relX: -35, relY: 45 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: -15, relY: 45 },
+    { id: 'd13', name: 'D13', nameAr: 'مخرج D13', relX: 25, relY: -45 },
+    { id: 'a0', name: 'A0', nameAr: 'مدخل A0', relX: 15, relY: 45 }
+  ],
+  esp32: [
+    { id: '3v3', name: '3V3', nameAr: 'تغذية 3.3V', relX: -25, relY: 35 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: -10, relY: 35 },
+    { id: 'gpio2', name: 'D2', nameAr: 'دبوس GPIO2', relX: 20, relY: -35 }
+  ],
+  ultrasonic: [
+    { id: 'vcc', name: 'VCC', nameAr: 'موجب VCC', relX: -24, relY: 22 },
+    { id: 'trig', name: 'TRIG', nameAr: 'إطلاق Trig', relX: -8, relY: 22 },
+    { id: 'echo', name: 'ECHO', nameAr: 'استقبال Echo', relX: 8, relY: 22 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: 24, relY: 22 }
+  ],
+  ir_sensor: [
+    { id: 'vcc', name: 'VCC', nameAr: 'تغذية VCC', relX: -16, relY: 20 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: 0, relY: 20 },
+    { id: 'out', name: 'OUT', nameAr: 'مخرج OUT', relX: 16, relY: 20 }
+  ],
+  temp_sensor: [
+    { id: 'vcc', name: 'VCC', nameAr: 'موجب VCC', relX: -14, relY: 18 },
+    { id: 'out', name: 'OUT', nameAr: 'إشارة Vout', relX: 0, relY: 18 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: 14, relY: 18 }
+  ],
+  ldr: [
+    { id: 'p1', name: '1', nameAr: 'طرف 1', relX: -18, relY: 0 },
+    { id: 'p2', name: '2', nameAr: 'طرف 2', relX: 18, relY: 0 }
+  ],
+  motor_driver: [
+    { id: 'vcc', name: 'VCC', nameAr: 'تغذية VCC', relX: -30, relY: 30 },
+    { id: 'gnd', name: 'GND', nameAr: 'أرضي GND', relX: -15, relY: 30 },
+    { id: 'in1', name: 'IN1', nameAr: 'مدخل IN1', relX: 0, relY: 30 },
+    { id: 'in2', name: 'IN2', nameAr: 'مدخل IN2', relX: 15, relY: 30 },
+    { id: 'out1', name: 'OUT1', nameAr: 'مخرج OUT1', relX: -25, relY: -30 },
+    { id: 'out2', name: 'OUT2', nameAr: 'مخرج OUT2', relX: 25, relY: -30 }
+  ],
   voltmeter: [
     { id: 'pos', name: '+', nameAr: 'موجب (+)', relX: -26, relY: 18 },
     { id: 'neg', name: '-', nameAr: 'سالب (-)', relX: 26, relY: 18 }
@@ -301,6 +380,10 @@ export const COMPONENT_PINS: Record<ComponentKind, CWPinDef[]> = {
   ammeter: [
     { id: 'pos', name: '+', nameAr: 'مدخل (+)', relX: -26, relY: 18 },
     { id: 'neg', name: '-', nameAr: 'مخرج (-)', relX: 26, relY: 18 }
+  ],
+  multimeter: [
+    { id: 'red', name: 'V/Ω', nameAr: 'طرف أحمر (+)', relX: -16, relY: 35 },
+    { id: 'black', name: 'COM', nameAr: 'طرف أسود (COM)', relX: 16, relY: 35 }
   ],
   breadboard: [
     { id: 'pos_top', name: '+ Top', nameAr: 'موجب علوي', relX: -110, relY: -44 },
@@ -574,19 +657,32 @@ export const GALLERY_ITEMS: GalleryItem[] = [
   { kind: 'battery_aa', name: 'AA Battery 1.5V', nameAr: 'بطارية قلم 1.5V AA', category: 'Power Supplies', defaultVal: 1.5, unit: 'V' },
   { kind: 'battery_9v', name: 'PP3 9V Battery with Clip', nameAr: 'بطارية 9V مع مشبك', category: 'Power Supplies', defaultVal: 9, unit: 'V' },
   { kind: 'battery_4aa', name: '4 x AA Battery Pack 6V', nameAr: 'علبة بطاريات 4xAA (6V)', category: 'Power Supplies', defaultVal: 6, unit: 'V' },
+  { kind: 'dc_supply', name: 'DC Bench Power Supply 12V', nameAr: 'وحدة تغذية مستمرة DC Power Supply', category: 'Power Supplies', defaultVal: 12, unit: 'V' },
   { kind: 'breadboard', name: 'Solderless Breadboard', nameAr: 'لوحة تجارب Breadboard', category: 'Boards & Prototyping', defaultVal: 0, unit: '' },
+  { kind: 'arduino', name: 'Arduino UNO Microcontroller', nameAr: 'متحكم أردوينو أونو Arduino UNO', category: 'Boards & Prototyping', defaultVal: 5, unit: 'V' },
+  { kind: 'esp32', name: 'ESP32 Wi-Fi & BLE Microcontroller', nameAr: 'متحكم ESP32 الذكي', category: 'Boards & Prototyping', defaultVal: 3.3, unit: 'V' },
   { kind: 'switch_spst', name: 'SPST Toggle Switch', nameAr: 'مفتاح قلاب SPST', category: 'Input Components', defaultVal: 0, unit: '' },
   { kind: 'push_button', name: 'Push-to-Make Switch', nameAr: 'زر ضغط Push Button', category: 'Input Components', defaultVal: 0, unit: '' },
   { kind: 'potentiometer', name: 'Rotary Potentiometer 10k', nameAr: 'مقاومة متغيرة Potentiometer', category: 'Input Components', defaultVal: 10000, unit: 'Ω' },
+  { kind: 'ultrasonic', name: 'HC-SR04 Ultrasonic Distance Sensor', nameAr: 'حساس المسافة بالأولتراسونيك Ultrasonic', category: 'Input Components', defaultVal: 5, unit: 'V' },
+  { kind: 'ir_sensor', name: 'Infrared Proximity IR Sensor', nameAr: 'حساس الأشعة تحت الحمراء IR', category: 'Input Components', defaultVal: 5, unit: 'V' },
+  { kind: 'temp_sensor', name: 'LM35 Temperature Sensor', nameAr: 'حساس الحرارة LM35', category: 'Input Components', defaultVal: 5, unit: 'V' },
+  { kind: 'ldr', name: 'Light Dependent Resistor (LDR)', nameAr: 'المقاومة الضوئية LDR', category: 'Input Components', defaultVal: 500, unit: 'Ω' },
   { kind: 'resistor', name: 'Resistor 1kΩ (Carbon Film)', nameAr: 'مقاومة كربونية 1kΩ', category: 'Passive Components', defaultVal: 1000, unit: 'Ω' },
   { kind: 'capacitor', name: 'Capacitor 100µF', nameAr: 'مكثف إلكتروليتي 100µF', category: 'Passive Components', defaultVal: 100, unit: 'µF' },
   { kind: 'led', name: '5mm Red LED', nameAr: 'دايود ضوئي LED', category: 'Discrete Semiconductors', defaultVal: 2.1, unit: 'V' },
   { kind: 'diode', name: '1N4007 Rectifier Diode', nameAr: 'دايود مقوم 1N4007', category: 'Discrete Semiconductors', defaultVal: 0.7, unit: 'V' },
+  { kind: 'transistor', name: 'NPN Transistor (2N2222)', nameAr: 'ترانزستور NPN 2N2222', category: 'Discrete Semiconductors', defaultVal: 0, unit: '' },
+  { kind: 'relay', name: '5V Single-Channel Relay Module', nameAr: 'رحل كهرومغناطيسي Relay 5V', category: 'Discrete Semiconductors', defaultVal: 5, unit: 'V' },
   { kind: 'bulb', name: 'Filament Lamp 1.5V', nameAr: 'مصباح توهج 1.5V', category: 'Output Components', defaultVal: 1.5, unit: 'V' },
   { kind: 'buzzer', name: 'Piezo Buzzer 9V', nameAr: 'جرس بيزو Piezo Buzzer', category: 'Output Components', defaultVal: 9, unit: 'V' },
-  { kind: 'motor', name: 'Miniature DC Motor', nameAr: 'محرك تيار مستمر DC', category: 'Output Components', defaultVal: 6, unit: 'V' },
+  { kind: 'motor', name: 'Miniature DC Motor', nameAr: 'محرك تيار مستمر DC Motor', category: 'Output Components', defaultVal: 6, unit: 'V' },
+  { kind: 'servo', name: 'SG90 Micro Servo Motor 180°', nameAr: 'محرك سيرفو دقيق Servo Motor', category: 'Output Components', defaultVal: 5, unit: 'V' },
+  { kind: 'stepper', name: '28BYJ-48 Stepper Motor', nameAr: 'محرك خطوي Stepper Motor', category: 'Output Components', defaultVal: 5, unit: 'V' },
+  { kind: 'motor_driver', name: 'L298N Dual H-Bridge Motor Driver', nameAr: 'سائق محركات L298N Motor Driver', category: 'Output Components', defaultVal: 12, unit: 'V' },
   { kind: 'voltmeter', name: 'Digital Voltmeter', nameAr: 'فولتميتر رقمي', category: 'Test Equipment', defaultVal: 0, unit: 'V' },
-  { kind: 'ammeter', name: 'Digital Ammeter', nameAr: 'أمبيرميتر رقمي', category: 'Test Equipment', defaultVal: 0, unit: 'A' }
+  { kind: 'ammeter', name: 'Digital Ammeter', nameAr: 'أمبيرميتر رقمي', category: 'Test Equipment', defaultVal: 0, unit: 'A' },
+  { kind: 'multimeter', name: 'Digital Multimeter (DMM)', nameAr: 'جهاز الأفوميتر الشامل Multimeter', category: 'Test Equipment', defaultVal: 0, unit: 'V' }
 ];
 
 // ==========================================
@@ -1294,7 +1390,7 @@ export function CircuitWizardLab() {
             </svg>
           </div>
           <span className="text-[11px] sm:text-xs tracking-wide truncate">
-            Circuit Wizard - [{activeCircuit.fileName}]
+            🔬 المختبر الواقعي — Realistic Lab (Circuit Wizard Engine) - [{activeCircuit.fileName}]
           </span>
         </div>
 
@@ -2652,6 +2748,138 @@ export function CircuitWizardLab() {
                               <text x="0" y="3" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold">
                                 {el.ref}
                               </text>
+                            </g>
+                          )}
+
+                          {/* 13. DC Bench Power Supply */}
+                          {el.kind === 'dc_supply' && (
+                            <g>
+                              <rect x="-35" y="-25" width="70" height="50" rx="4" fill="#0f172a" stroke="#2563eb" strokeWidth="2" />
+                              <rect x="-28" y="-18" width="56" height="22" rx="2" fill="#042f2e" stroke="#0d9488" strokeWidth="1" />
+                              <text x="0" y="-3" textAnchor="middle" fill="#2dd4bf" fontSize="11" fontFamily="monospace" fontWeight="bold">
+                                {`${(el.value || 12).toFixed(1)} V`}
+                              </text>
+                              <circle cx="-20" cy="14" r="4.5" fill="#ef4444" stroke="#991b1b" />
+                              <circle cx="20" cy="14" r="4.5" fill="#1e293b" stroke="#000000" />
+                              <text x="-20" y="17" textAnchor="middle" fill="#ffffff" fontSize="6" fontWeight="bold">+</text>
+                              <text x="20" y="17" textAnchor="middle" fill="#ffffff" fontSize="6" fontWeight="bold">-</text>
+                            </g>
+                          )}
+
+                          {/* 14. Arduino UNO */}
+                          {el.kind === 'arduino' && (
+                            <g>
+                              <rect x="-42" y="-50" width="84" height="100" rx="4" fill="#00838f" stroke="#005662" strokeWidth="2" />
+                              <rect x="-35" y="-45" width="20" height="25" fill="#cbd5e1" stroke="#475569" rx="1" />
+                              <rect x="5" y="-42" width="28" height="12" fill="#1e293b" rx="1" />
+                              <text x="0" y="5" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold" letterSpacing="0.5">UNO</text>
+                              <text x="0" y="16" textAnchor="middle" fill="#22d3ee" fontSize="7" fontWeight="bold">ARDUINO</text>
+                              <rect x="-38" y="-48" width="5" height="96" fill="#111827" />
+                              <rect x="33" y="-48" width="5" height="96" fill="#111827" />
+                            </g>
+                          )}
+
+                          {/* 15. ESP32 */}
+                          {el.kind === 'esp32' && (
+                            <g>
+                              <rect x="-30" y="-40" width="60" height="80" rx="3" fill="#1e293b" stroke="#475569" strokeWidth="1.8" />
+                              <rect x="-22" y="-35" width="44" height="35" rx="2" fill="#cbd5e1" stroke="#94a3b8" />
+                              <text x="0" y="-17" textAnchor="middle" fill="#0f172a" fontSize="8" fontWeight="bold">ESP-WROOM-32</text>
+                              <text x="0" y="18" textAnchor="middle" fill="#38bdf8" fontSize="9" fontWeight="bold">ESP32</text>
+                            </g>
+                          )}
+
+                          {/* 16. Transistor NPN */}
+                          {el.kind === 'transistor' && (
+                            <g>
+                              <path d="M -16 -18 C 16 -18, 16 18, -16 18 Z" fill="#0f172a" stroke="#334155" strokeWidth="1.2" />
+                              <line x1="-18" y1="0" x2="-8" y2="0" stroke="#cbd5e1" strokeWidth="2" />
+                              <line x1="12" y1="-16" x2="12" y2="-6" stroke="#cbd5e1" strokeWidth="2" />
+                              <line x1="12" y1="16" x2="12" y2="6" stroke="#cbd5e1" strokeWidth="2" />
+                            </g>
+                          )}
+
+                          {/* 17. Relay Module */}
+                          {el.kind === 'relay' && (
+                            <g>
+                              <rect x="-28" y="-22" width="56" height="44" rx="3" fill="#2563eb" stroke="#1d4ed8" strokeWidth="1.5" />
+                              <rect x="-20" y="-14" width="22" height="28" fill="#1e293b" rx="2" />
+                              <text x="-9" y="3" textAnchor="middle" fill="#ffffff" fontSize="7" fontWeight="bold">RELAY</text>
+                              <text x="14" y="-8" textAnchor="middle" fill="#fef08a" fontSize="7" fontWeight="bold">NO</text>
+                              <text x="14" y="12" textAnchor="middle" fill="#fef08a" fontSize="7" fontWeight="bold">NC</text>
+                            </g>
+                          )}
+
+                          {/* 18. Servo Motor */}
+                          {el.kind === 'servo' && (
+                            <g>
+                              <rect x="-22" y="-30" width="44" height="60" rx="3" fill="#1d4ed8" stroke="#1e40af" strokeWidth="1.5" />
+                              <circle cx="0" cy="-10" r="14" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
+                              <g transform={`rotate(${(currentTick * 12) % 180})`}>
+                                <polygon points="-12,-10 12,-10 0,-24" fill="#f1f5f9" stroke="#64748b" strokeWidth="0.8" />
+                              </g>
+                              <text x="0" y="18" textAnchor="middle" fill="#ffffff" fontSize="7.5" fontWeight="bold">SG90</text>
+                            </g>
+                          )}
+
+                          {/* 19. Stepper Motor */}
+                          {el.kind === 'stepper' && (
+                            <g>
+                              <circle cx="0" cy="0" r="24" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
+                              <circle cx="0" cy="0" r="15" fill="#f1f5f9" stroke="#cbd5e1" />
+                              <rect x="-3" y="-28" width="6" height="8" fill="#d97706" />
+                              <text x="0" y="4" textAnchor="middle" fill="#1e293b" fontSize="7" fontWeight="bold">STEPPER</text>
+                            </g>
+                          )}
+
+                          {/* 20. Ultrasonic Sensor */}
+                          {el.kind === 'ultrasonic' && (
+                            <g>
+                              <rect x="-32" y="-18" width="64" height="36" rx="4" fill="#1e3a8a" stroke="#1d4ed8" strokeWidth="1.5" />
+                              <circle cx="-16" cy="0" r="11" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" />
+                              <circle cx="16" cy="0" r="11" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" />
+                              <circle cx="-16" cy="0" r="6" fill="#1e293b" />
+                              <circle cx="16" cy="0" r="6" fill="#1e293b" />
+                              <text x="0" y="14" textAnchor="middle" fill="#22d3ee" fontSize="6.5" fontWeight="bold">HC-SR04</text>
+                            </g>
+                          )}
+
+                          {/* 21. IR / Temp / LDR Sensors */}
+                          {(el.kind === 'ir_sensor' || el.kind === 'temp_sensor' || el.kind === 'ldr') && (
+                            <g>
+                              <rect x="-20" y="-15" width="40" height="30" rx="3" fill="#0f172a" stroke="#38bdf8" strokeWidth="1.2" />
+                              <circle cx="0" cy="-3" r="7" fill="#ef4444" opacity="0.8" />
+                              <text x="0" y="10" textAnchor="middle" fill="#ffffff" fontSize="7" fontWeight="bold">
+                                {el.kind === 'ldr' ? 'LDR' : el.kind === 'temp_sensor' ? 'LM35' : 'IR SENSOR'}
+                              </text>
+                            </g>
+                          )}
+
+                          {/* 22. Motor Driver L298N */}
+                          {el.kind === 'motor_driver' && (
+                            <g>
+                              <rect x="-38" y="-35" width="76" height="70" rx="4" fill="#b91c1c" stroke="#7f1d1d" strokeWidth="2" />
+                              <rect x="-18" y="-28" width="36" height="28" fill="#1e293b" rx="2" />
+                              <line x1="-14" y1="-28" x2="-14" y2="-4" stroke="#94a3b8" strokeWidth="1.5" />
+                              <line x1="-6" y1="-28" x2="-6" y2="-4" stroke="#94a3b8" strokeWidth="1.5" />
+                              <line x1="2" y1="-28" x2="2" y2="-4" stroke="#94a3b8" strokeWidth="1.5" />
+                              <line x1="10" y1="-28" x2="10" y2="-4" stroke="#94a3b8" strokeWidth="1.5" />
+                              <text x="0" y="18" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">L298N</text>
+                            </g>
+                          )}
+
+                          {/* 23. Digital Multimeter (DMM) */}
+                          {el.kind === 'multimeter' && (
+                            <g>
+                              <rect x="-24" y="-42" width="48" height="84" rx="5" fill="#f59e0b" stroke="#b45309" strokeWidth="2" />
+                              <rect x="-18" y="-35" width="36" height="22" rx="2" fill="#042f2e" stroke="#0d9488" />
+                              <text x="0" y="-20" textAnchor="middle" fill="#2dd4bf" fontSize="9.5" fontFamily="monospace" fontWeight="bold">
+                                {solvedState.isLoopActive ? '12.00 V' : '0.00 V'}
+                              </text>
+                              <circle cx="0" cy="5" r="11" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+                              <line x1="0" y1="5" x2="0" y2="-3" stroke="#facc15" strokeWidth="2" />
+                              <circle cx="-12" cy="30" r="3" fill="#ef4444" />
+                              <circle cx="12" cy="30" r="3" fill="#0f172a" />
                             </g>
                           )}
                         </>
