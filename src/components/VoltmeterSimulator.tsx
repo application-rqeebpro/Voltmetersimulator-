@@ -246,7 +246,11 @@ export const VoltmeterSimulator: React.FC = () => {
       }
     } else if (dial === 'OHM') {
       setReadingUnit('Ω');
-      if (redNode && blackNode) {
+      if (isCircuitPowered) {
+        // Safety interlock: Cannot measure resistance while circuit is powered!
+        setReading('ERR-V');
+        setReadingUnit('⚡ HAZARD');
+      } else if (redNode && blackNode) {
         if (redNode.id === blackNode.id) {
           setReading('00.2');
         } else if (
@@ -309,7 +313,7 @@ export const VoltmeterSimulator: React.FC = () => {
   };
 
   // Preset experiment loader
-  const loadPreset = (preset: 'battery' | 'led' | 'divider' | 'ac') => {
+  const loadPreset = (preset: 'battery' | 'led' | 'divider' | 'ac' | 'resistance') => {
     setActiveExperiment(preset);
     playTone(1800, 0.08);
 
@@ -332,6 +336,12 @@ export const VoltmeterSimulator: React.FC = () => {
       setDial('VAC');
       setRedProbe({ x: 34, y: 75, snappedNodeId: 'node_ac_gen' });
       setBlackProbe({ x: 14, y: 65, snappedNodeId: 'node_bat_neg' });
+    } else if (preset === 'resistance') {
+      // Golden Rule: Power MUST be disconnected to measure resistance!
+      setDial('OHM');
+      setIsCircuitPowered(false);
+      setRedProbe({ x: 48, y: 35, snappedNodeId: 'node_r_in' });
+      setBlackProbe({ x: 62, y: 35, snappedNodeId: 'node_led_anode' });
     }
   };
 
@@ -445,6 +455,14 @@ export const VoltmeterSimulator: React.FC = () => {
             }`}
           >
             4. مصدر جهد متناوب (AC RMS)
+          </button>
+          <button
+            onClick={() => loadPreset('resistance')}
+            className={`px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1 ${
+              activeExperiment === 'resistance' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-900 text-amber-300 hover:bg-slate-800 border border-amber-500/30'
+            }`}
+          >
+            <span>5. قياس المقاومة R1 (أوميتر - طاقة مفصولة 330Ω)</span>
           </button>
         </div>
 

@@ -514,11 +514,12 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setShowMultimeter(!showMultimeter)}
-                  className={`px-2 py-1 rounded-lg transition font-medium shrink-0 ${
-                    showMultimeter ? 'bg-[#f59e0b] text-[#040915] font-black' : 'text-slate-400 hover:text-slate-200'
+                  className={`px-2 py-1 rounded-lg transition font-medium shrink-0 flex items-center gap-1 ${
+                    showMultimeter ? 'bg-[#f59e0b] text-[#040915] font-black shadow-sm' : 'text-slate-400 hover:text-slate-200'
                   }`}
+                  title="أداة قياس المقاومة وفحص الدوائر المفتوحة والأفوميتر"
                 >
-                  الملتيميتر (DMM)
+                  <span>أوميتر وملتيميتر (DMM / Ω)</span>
                 </button>
                 <button
                   onClick={() => setShowPowerSupply(!showPowerSupply)}
@@ -691,13 +692,15 @@ export default function App() {
               )}
 
               {showMultimeter && (
-                <DigitalMultimeter
-                  state={dmmState}
-                  onChange={(s) => setDmmState(prev => ({ ...prev, ...s }))}
-                  measuredVoltage={powerState.enabled ? powerState.setVoltage : 0}
-                  measuredCurrent={powerState.enabled ? powerState.measuredCurrent : 0}
-                  measuredResistance={330}
-                />
+                <div className={showPowerSupply ? "lg:col-span-2" : "lg:col-span-3"}>
+                  <DigitalMultimeter
+                    state={dmmState}
+                    onChange={(s) => setDmmState(prev => ({ ...prev, ...s }))}
+                    measuredVoltage={powerState.enabled ? powerState.setVoltage : 0}
+                    measuredCurrent={powerState.enabled ? powerState.measuredCurrent : 0}
+                    measuredResistance={330}
+                  />
+                </div>
               )}
 
               {showOscilloscope && (
